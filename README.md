@@ -25,16 +25,24 @@ Le fil rouge est l'équation `∑ ẑᵢ = 0` — la somme des directions de cen
 
 Le résultat central qui motive cette exploration est le **Gaussian propeller bound** :
 
-> **Théorème** (OpenAI, *The Gaussian propeller bound in every dimension*, 24 septembre 2026 [citation:1][citation:5])
+> **Théorème** (OpenAI, *The Gaussian propeller bound in every dimension*, 24 septembre 2026 )
 > Pour toute partition mesurable `(A₁, …, Aₖ)` de `ℝ^d` et pour la mesure gaussienne standard `γ_d` :
 > ```
 > ∑ᵢ ‖ ∫_{Aᵢ} x dγ_d(x) ‖²  ≤  9/(8π)
 > ```
 > La borne est atteinte, pour `d ≥ 2` et `k ≥ 3`, par trois secteurs planaires d'angle `2π/3`, étendus orthogonalement.
 
-Ce résultat a une conséquence pour le **kernel clustering** : combiné au théorème Unique Games, il prouve la NP-difficulté de toute approximation déterministe du clustering à cible identité avec un facteur de perte inférieur à `αₖ = (8π/9)(1 − 1/k)` pour `k ≥ 3` [citation:1][citation:7].
+Ce résultat a une conséquence pour le **kernel clustering** : combiné au théorème Unique Games, il prouve la NP-difficulté de toute approximation déterministe du clustering à cible identité avec un facteur de perte inférieur à `αₖ = (8π/9)(1 − 1/k)` pour `k ≥ 3` .
 
 **Ce que ce projet n'est pas** : une preuve, ni une implémentation de l'algorithme d'arrondi. C'est un **outil pédagogique** pour voir la géométrie derrière les équations.
+
+### Démo de référence (OpenAI)
+
+La démo officielle accompagnant le papier est consultable ici :
+
+> [**The Gaussian propeller bound in every dimension — demo interactive**](https://lombard-web-services.github.io/OpenAI-Files/The%20Gaussian%20propeller%20bound%20in%20every%20dimension/index.html)
+
+Elle sert de point de comparaison : notre travail reprend la même géométrie (secteurs 2π/3, extrusion orthogonale) mais l'inscrit dans un parcours pédagogique plus large, en reliant explicitement mécanique lagrangienne, flux gaussiens et partitions de graphes.
 
 ## Les deux démos
 
@@ -58,7 +66,7 @@ Exploration plus technique : tentatives de garantie `α` sur Max-Cut via des con
 
 ## Ce que le projet a vraiment prouvé (et ce qu'il n'a pas prouvé)
 
-**Prouvé (au sens de la littérature citée)** : la borne `9/(8π)` est un théorème d'OpenAI (2026), formellement vérifié en Lean pour l'énoncé principal [citation:3][citation:9]. Les bornes `α_GW` et `K_G` sont des résultats classiques.
+**Prouvé (au sens de la littérature citée)** : la borne `9/(8π)` est un théorème d'OpenAI (2026), formellement vérifié en Lean pour l'énoncé principal . Les bornes `α_GW` et `K_G` sont des résultats classiques.
 
 **Non prouvé par ce projet** : aucune des visualisations ne constitue une preuve. Les scènes « Max-Cut » illustrent des concepts ; elles ne remplacent pas une analyse rigoureuse. Les tentatives de garantie `α` via Allen–Cahn sont des explorations, pas des théorèmes.
 
@@ -66,11 +74,15 @@ Exploration plus technique : tentatives de garantie `α` sur Max-Cut via des con
 
 ## Basé sur
 
-- **OpenAI**, *The Gaussian propeller bound in every dimension*, 24 septembre 2026. [PDF](https://github.com/openai/math/blob/main/preprints/The-Gaussian-Propeller-Bound-in-Every-Dimension-September-24-2026/main.pdf) [citation:1][citation:5]
+- **OpenAI**, *The Gaussian propeller bound in every dimension*, 24 septembre 2026. [PDF](https://github.com/openai/math/blob/main/preprints/The-Gaussian-Propeller-Bound-in-Every-Dimension-September-24-2026/main.pdf)  · [Démo officielle](https://lombard-web-services.github.io/OpenAI-Files/The%20Gaussian%20propeller%20bound%20in%20every%20dimension/index.html)
 - **Khot & Naor**, *Approximate kernel clustering*, Mathematika 55 (2009). — Le cadre `αₖ` et l'arrondi gaussien.
 - **Heilman, Jagannath & Naor**, *Solution of the propeller conjecture in ℝ³*, Discrete Comput. Geom. 50 (2013). — Base du cas `m ≤ 4`.
 - **Goemans & Williamson**, *Improved approximation algorithms for maximum cut*, JACM 42 (1995). — `α_GW`.
-- **Physique des Lumières** (démos de physique) : [github.com/Lombard-Web-Services/Physique-des-Lumieres](https://github.com/Lombard-Web-Services/Physique-des-Lumieres) — inspiration pour le rendu canvas et les scènes 3D.
+
+## Inspirations pédagogiques
+
+- **Physique des Lumières** — série de démos interactives de physique, en particulier le dossier [`encore`](https://github.com/Lombard-Web-Services/Physique-des-Lumieres/tree/main/encore) : [github.com/Lombard-Web-Services/Physique-des-Lumieres](https://github.com/Lombard-Web-Services/Physique-des-Lumieres).
+  **Ce qui a été repris** : l'approche de la **mécanique lagrangienne** (forces concourantes, parallélogramme des forces, composition de forces parallèles), qui constitue le socle conceptuel des scènes 1 à 6 de la démo pédagogique. Le rendu canvas et les scènes 3D s'en inspirent également, mais le cœur de l'emprunt est **la mise en scène pédagogique de Lagrange**, pas la technique de rendu.
 
 ## Utilisation
 
