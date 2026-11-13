@@ -1,0 +1,4370 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Forces & Propeller — Ponts géométriques</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<style>
+  :root {
+    --bg: #000000;
+    --text-main: #ffffff;
+    --text-muted: #b0b0c0;
+    --panel-bg: rgba(10, 10, 15, 0.92);
+    --panel-border: rgba(150, 150, 255, 0.3);
+    --accent-purple: #a855f7;
+    --accent-cyan: #06b6d4;
+    --accent-gold: #eab308;
+    --accent-red: #ef4444;
+    --accent-green: #22c55e;
+    --font-title: clamp(2.2rem, 4.2vw, 3.6rem);
+    --font-eq: clamp(1.25rem, 2.2vw, 1.95rem);
+    --font-desc: clamp(1.1rem, 1.55vw, 1.35rem);
+    --font-legend: 1.1rem;
+    --panel-width: 380px;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: "Times New Roman", Times, serif;
+    background-color: var(--bg);
+    color: var(--text-main);
+    overflow: hidden;
+  }
+  #stage {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    transition: padding-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  #stage.panel-open { padding-left: var(--panel-width); }
+  #stage.panel-open #description-wrap { left: var(--panel-width); right: 0; }
+  #stage.panel-open .floating-legend.left {
+    left: calc(var(--panel-width) + 12px); right: auto;
+    top: 50%; transform: translateY(-50%);
+  }
+  #stage.panel-open .floating-legend.right {
+    right: 12px; left: auto;
+    top: 50%; transform: translateY(-50%);
+  }
+  #particles-canvas {
+    position: absolute; inset: 0;
+    pointer-events: none; z-index: 1;
+  }
+  #stage.panel-open #particles-canvas { left: var(--panel-width); }
+
+  #stage-header {
+    position: relative; z-index: 20;
+    padding: 12px 36px 14px;
+    text-align: center;
+    flex: 0 0 auto;
+    pointer-events: none;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.55) 70%, transparent 100%);
+    min-height: 0;
+  }
+  #scene-title {
+    font-size: var(--font-title);
+    font-weight: 400;
+    margin: 0 0 6px 0;
+    letter-spacing: 1.4px;
+    color: #ffffff;
+    text-shadow: 0 0 40px rgba(255, 255, 255, 0.25), 0 2px 12px rgba(0,0,0,0.9);
+    pointer-events: auto;
+    line-height: 1.2;
+    position: relative;
+    z-index: 22;
+  }
+  #scene-eq {
+    margin: 0 auto 0;
+    padding-top: 4px;
+    font-size: var(--font-eq);
+    color: #ffffff;
+    display: block;
+    min-height: 1.5em;
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.2), 0 2px 10px rgba(0,0,0,0.85);
+    pointer-events: auto;
+    line-height: 1.4;
+    max-width: min(960px, 94%);
+    position: relative;
+    z-index: 22;
+  }
+  #scene-caption {
+    display: block;
+    margin: 8px auto 0;
+    font-size: clamp(0.95rem, 1.35vw, 1.12rem);
+    color: #eab308;
+    font-style: italic;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.95);
+    pointer-events: none;
+    min-height: 1.2em;
+    max-width: 90%;
+    position: relative;
+    z-index: 22;
+  }
+
+  #canvas-wrap {
+    position: relative; z-index: 2;
+    flex: 1 1 auto;
+    margin: 0; min-height: 0;
+    display: flex; justify-content: center; align-items: center;
+    padding-top: 4px;
+    padding-bottom: 110px;
+  }
+  #canvas-wrap canvas {
+    width: 100%; height: 100%; display: block;
+    cursor: grab; touch-action: none;
+  }
+  #canvas-wrap canvas:active { cursor: grabbing; }
+
+  .floating-legend {
+    position: absolute; z-index: 15;
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 14px 18px;
+    font-size: var(--font-legend);
+    line-height: 1.5;
+    backdrop-filter: blur(16px);
+    box-shadow: 0 12px 48px rgba(0,0,0,0.85);
+    pointer-events: auto;
+    max-width: 250px;
+    cursor: grab;
+    user-select: none;
+    top: 50%;
+    transform: translateY(-50%);
+    transition: box-shadow 0.2s ease, left 0.3s cubic-bezier(0.4, 0, 0.2, 1), right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .floating-legend:active { cursor: grabbing; box-shadow: 0 16px 56px rgba(168,85,247,0.4); }
+  .floating-legend.left { left: 12px; right: auto; }
+  .floating-legend.right { right: 12px; left: auto; }
+  .floating-legend h4 {
+    margin: 0 0 10px;
+    font-family: "Consolas", monospace;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--accent-purple);
+    border-bottom: 2px solid rgba(168, 85, 247, 0.5);
+    padding-bottom: 6px;
+    cursor: grab;
+  }
+  .floating-legend ul { list-style: none; margin: 0; padding: 0; }
+  .floating-legend li {
+    display: flex; align-items: flex-start; gap: 10px;
+    margin-bottom: 8px;
+  }
+  .floating-legend .swatch {
+    flex: 0 0 auto; width: 14px; height: 14px;
+    border-radius: 4px; margin-top: 3px;
+    border: 1px solid rgba(255,255,255,0.25);
+  }
+  .floating-legend .eq {
+    margin-top: 10px; padding-top: 8px;
+    border-top: 1px solid rgba(255,255,255,0.2);
+    font-style: italic;
+    color: #ffffff;
+    font-size: 1.05rem;
+    text-align: center;
+  }
+
+  #description-wrap {
+    position: absolute;
+    bottom: 16px; left: 0; right: 0;
+    z-index: 12;
+    display: flex; justify-content: center; align-items: center;
+    pointer-events: none;
+    padding: 0 28px;
+  }
+  #description {
+    background: rgba(5, 5, 10, 0.97);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 12px 24px;
+    font-size: var(--font-desc);
+    line-height: 1.5;
+    color: #f0f0f5;
+    text-align: center;
+    backdrop-filter: blur(14px);
+    box-shadow: 0 12px 48px rgba(0,0,0,0.95);
+    pointer-events: auto;
+    transition: all 0.3s ease;
+    max-width: min(860px, 90%);
+    margin: 0 auto;
+  }
+  #stage.panel-open #description {
+    max-width: min(1080px, 94%);
+  }
+  #description strong { color: #ffffff; font-weight: 700; }
+  #description em { color: var(--accent-cyan); font-style: italic; }
+
+  #toolbar {
+    position: absolute; top: 12px; left: 12px;
+    display: flex; gap: 10px; z-index: 40;
+  }
+  #toolbar button {
+    font-family: inherit; font-size: 0.95rem;
+    padding: 9px 14px; border-radius: 10px;
+    border: 1px solid var(--panel-border);
+    background: rgba(10, 10, 18, 0.9);
+    color: var(--text-main); cursor: pointer;
+    transition: all 0.2s;
+    backdrop-filter: blur(10px);
+  }
+  #toolbar button:hover { background: rgba(40, 40, 65, 0.98); border-color: var(--accent-purple); }
+  #toolbar button.on { background: var(--accent-purple); color: #fff; border-color: var(--accent-purple); }
+
+  #panel {
+    position: fixed; top: 0; left: 0;
+    width: var(--panel-width); height: 100vh;
+    background: rgba(8, 8, 14, 0.99);
+    border-right: 1px solid var(--panel-border);
+    overflow-y: auto; padding: 22px;
+    z-index: 60; transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    backdrop-filter: blur(24px);
+    box-shadow: 12px 0 60px rgba(0,0,0,0.6);
+  }
+  #panel.open { transform: translateX(0); }
+  #panel h2 { font-size: 1.4rem; margin: 0 0 18px; color: var(--accent-purple); font-weight: 400; }
+
+  .scene-list { list-style: none; padding: 0; margin: 0 0 18px; }
+  .scene-list li {
+    padding: 10px 14px; border-radius: 10px; cursor: pointer;
+    font-size: 0.98rem; margin-bottom: 7px;
+    border: 1px solid transparent; transition: all 0.2s;
+    background: rgba(255,255,255,0.03);
+  }
+  .scene-list li:hover { background: rgba(255,255,255,0.09); }
+  .scene-list li.active {
+    background: rgba(168, 85, 247, 0.18);
+    border-color: var(--accent-purple);
+  }
+  .scene-list li .tag {
+    display: inline-block; font-family: "Consolas", monospace;
+    font-size: 0.75rem; background: #333; padding: 3px 8px;
+    border-radius: 5px; margin-right: 10px; color: #fff;
+  }
+  .scene-list li .tag.lag { background: #8e44ad; }
+  .scene-list li .tag.hyd { background: #2980b9; }
+  .scene-list li .tag.pro { background: #d68910; }
+  .scene-list li .tag.bri { background: #27ae60; }
+  .scene-list li .tag.gra { background: #0ea5e9; }
+  .scene-list li .tag.np  { background: #f43f5e; }
+  .scene-list li .tag.clu { background: #14b8a6; }
+
+  .params { margin-bottom: 18px; }
+  .params h3 {
+    font-size: 0.9rem; text-transform: uppercase;
+    letter-spacing: 1.6px; color: var(--text-muted);
+    margin: 0 0 12px; border-bottom: 1px solid rgba(255,255,255,0.12);
+    padding-bottom: 7px;
+  }
+  .param { margin-bottom: 14px; font-size: 0.98rem; }
+  .param label { display: flex; justify-content: space-between; margin-bottom: 7px; }
+  .param input[type=range] { width: 100%; accent-color: var(--accent-purple); height: 6px; }
+
+  .toggle-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .toggle-row button {
+    font-family: inherit; font-size: 0.9rem;
+    padding: 9px 12px; border-radius: 8px;
+    border: 1px solid var(--panel-border);
+    background: rgba(255,255,255,0.06); color: var(--text-main);
+    cursor: pointer; transition: all 0.2s;
+  }
+  .toggle-row button.on { background: var(--accent-purple); color: #fff; border-color: var(--accent-purple); }
+
+  #timeline-panel {
+    margin-top: 18px; padding-top: 14px;
+    border-top: 1px solid rgba(255,255,255,0.12);
+  }
+  #timeline-panel h3 {
+    font-size: 0.9rem; text-transform: uppercase;
+    letter-spacing: 1.6px; color: var(--text-muted);
+    margin: 0 0 12px;
+  }
+  #timeline-panel .timeline-row {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+  }
+  #timeline-panel input[type=range] { flex: 1; accent-color: var(--accent-purple); height: 6px; }
+  #timeline-panel .step-label {
+    font-size: 0.85rem; color: var(--accent-gold);
+    font-family: "Consolas", monospace; white-space: nowrap;
+  }
+  #btn-cinema {
+    width: 100%; padding: 11px;
+    background: var(--accent-gold); color: #000;
+    border: none; border-radius: 10px;
+    font-family: inherit; font-size: 1rem;
+    font-weight: bold; cursor: pointer;
+    transition: background 0.2s; margin-top: 8px;
+  }
+  #btn-cinema:hover { background: #fbbf24; }
+  #btn-cinema.playing { background: var(--accent-red); color: #fff; }
+
+  /* ─── BOUTON TRADUCTION ─── */
+  #lang-toggle {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; border-radius: 10px;
+    border: 1px solid var(--panel-border);
+    background: rgba(255,255,255,0.06);
+    cursor: pointer; transition: all 0.2s;
+    width: 100%; justify-content: center;
+    font-family: inherit; font-size: 0.98rem; color: var(--text-main);
+    margin-bottom: 18px;
+  }
+  #lang-toggle:hover { background: rgba(168,85,247,0.18); border-color: var(--accent-purple); }
+  #lang-toggle .flag {
+    width: 26px; height: 18px; border-radius: 3px;
+    display: inline-block; overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.3);
+    flex: 0 0 auto; position: relative;
+  }
+  /* Drapeau France */
+  .flag-fr { background: linear-gradient(to right, #0055A4 33.33%, #FFFFFF 33.33%, #FFFFFF 66.66%, #EF4135 66.66%); }
+  /* Drapeau USA */
+  .flag-us {
+    background:
+      repeating-linear-gradient(to bottom,
+        #B22234 0, #B22234 2px,
+        #FFFFFF 2px, #FFFFFF 4px),
+      #FFFFFF;
+  }
+  .flag-us::before {
+    content: ''; position: absolute;
+    top: 0; left: 0; width: 40%; height: 50%;
+    background: #3C3B6E;
+  }
+  .flag-us::after {
+    content: '★'; position: absolute;
+    top: 0; left: 8%; color: #fff; font-size: 5px; line-height: 1;
+  }
+</style>
+</head>
+<body>
+
+<main id="stage">
+  <canvas id="particles-canvas"></canvas>
+
+  <div id="toolbar">
+    <button id="btn-panel">☰ Scènes & Paramètres</button>
+    <button id="btn-full">⛶ Plein écran</button>
+  </div>
+
+  <header id="stage-header">
+    <h1 id="scene-title">Forces & Propeller</h1>
+    <div id="scene-eq"></div>
+    <div id="scene-caption"></div>
+  </header>
+
+  <div id="canvas-wrap">
+    <canvas id="view"></canvas>
+  </div>
+
+  <div id="legend-left" class="floating-legend left"></div>
+  <div id="legend-right" class="floating-legend right"></div>
+
+  <div id="description-wrap">
+    <div id="description"></div>
+  </div>
+</main>
+
+<aside id="panel">
+  <h2>Forces & Propeller</h2>
+
+  <button id="lang-toggle" title="Passer en anglais américain / Revenir au français">
+    <span class="flag flag-fr"></span>
+    <span id="lang-label">Français</span>
+    <span class="flag flag-us"></span>
+  </button>
+
+  <ul class="scene-list" id="scene-list"></ul>
+
+  <div class="params">
+    <h3 data-i18n="params-figure">Paramètres de la figure</h3>
+    <div id="param-box"></div>
+  </div>
+
+  <div class="params">
+    <h3 data-i18n="rendu">Rendu</h3>
+    <div class="param">
+      <label><span data-i18n="vitesse">Vitesse</span><span id="speed-val">0.55</span></label>
+      <input type="range" id="speed" min="0" max="2" step="0.01" value="0.55">
+    </div>
+    <div class="param">
+      <label><span data-i18n="opacite">Opacité du fond</span><span id="bg-val">1.0</span></label>
+      <input type="range" id="bg-opacity" min="0.1" max="1" step="0.05" value="1">
+    </div>
+    <div class="toggle-row">
+      <button id="btn-auto" class="on" data-i18n="auto">↻ Auto</button>
+      <button id="btn-pause" data-i18n="pause">⏸ Pause</button>
+      <button id="btn-grid" data-i18n="grille"># Grille</button>
+      <button id="btn-labels" class="on" data-i18n="labels">🏷 Labels</button>
+      <button id="btn-particles" class="on" data-i18n="particules">✦ Particules</button>
+    </div>
+  </div>
+
+  <div id="timeline-panel">
+    <h3 data-i18n="timeline">⏱ Timeline & Cinéma</h3>
+    <div class="timeline-row">
+      <input type="range" id="timeline-slider" min="0" max="100" value="0" step="1">
+      <span id="step-label" class="step-label">Étape 0 / 0</span>
+    </div>
+    <button id="btn-cinema" data-i18n="cinema">▶ Lancer le mode cinéma</button>
+  </div>
+</aside>
+
+<script>
+/* =====================================================================
+   0. I18N — Traduction FR / US
+   ===================================================================== */
+const I18N = {
+  fr: {
+    'panel-title': 'Forces & Propeller',
+    'params-figure': 'Paramètres de la figure',
+    'rendu': 'Rendu',
+    'vitesse': 'Vitesse',
+    'opacite': 'Opacité du fond',
+    'auto': '↻ Auto',
+    'pause': '⏸ Pause',
+    'grille': '# Grille',
+    'labels': '🏷 Labels',
+    'particules': '✦ Particules',
+    'timeline': '⏱ Timeline & Cinéma',
+    'cinema': '▶ Lancer le mode cinéma',
+    'cinema-stop': '⏸ Arrêter le mode cinéma',
+    'etape': 'Étape',
+    'btn-panel': '☰ Scènes & Paramètres',
+    'btn-full': '⛶ Plein écran',
+    'lang-label': 'Français',
+    'flag-title': 'Switch to American English',
+    'aucun-param': 'Aucun paramètre.',
+    'toggle-on': '✓ ',
+    'toggle-off': '✗ '
+  },
+  en: {
+    'panel-title': 'Forces & Propeller',
+    'params-figure': 'Figure parameters',
+    'rendu': 'Rendering',
+    'vitesse': 'Speed',
+    'opacite': 'Background opacity',
+    'auto': '↻ Auto',
+    'pause': '⏸ Pause',
+    'grille': '# Grid',
+    'labels': '🏷 Labels',
+    'particules': '✦ Particles',
+    'timeline': '⏱ Timeline & Cinema',
+    'cinema': '▶ Start cinema mode',
+    'cinema-stop': '⏸ Stop cinema mode',
+    'etape': 'Step',
+    'btn-panel': '☰ Scenes & Parameters',
+    'btn-full': '⛶ Fullscreen',
+    'lang-label': 'English',
+    'flag-title': 'Passer en français',
+    'aucun-param': 'No parameter.',
+    'toggle-on': '✓ ',
+    'toggle-off': '✗ '
+  }
+};
+
+/* Traductions des scènes — chaque champ est un objet {fr, en} ou une chaîne */
+const SCENE_TRANSLATIONS = {
+  /* ─── FORCES ─── */
+  threeforces: {
+    title: {
+      fr: "Fig. 1 — Équilibre de trois forces concourantes",
+      en: "Fig. 1 — Equilibrium of three concurrent forces"
+    },
+    desc: {
+      fr: "<strong>Leçon 3 §24</strong> — Trois forces P, Q, S concourent en O et se neutralisent : équilibre. Même géométrie que les centroïdes du propeller à 120° : le polygone des forces se referme. Chaque secteur est le bassin d'une force / d'un centroïde.",
+      en: "<strong>Lesson 3 §24</strong> — Three forces P, Q, S concur at O and cancel out: equilibrium. Same geometry as the 120° propeller centroids: the force polygon closes. Each sector is the basin of a force / centroid."
+    },
+    legendLeftTitle: { fr: "Forces", en: "Forces" },
+    legendRightTitle: { fr: "Polygone", en: "Polygon" },
+    legendLeftItems: {
+      fr: [
+        { color: '#ef4444', text: "<strong>ẑ₁</strong> — force P" },
+        { color: '#3b82f6', text: "<strong>ẑ₂</strong> — force Q" },
+        { color: '#22c55e', text: "<strong>ẑ₃</strong> — force S" }
+      ],
+      en: [
+        { color: '#ef4444', text: "<strong>ẑ₁</strong> — force P" },
+        { color: '#3b82f6', text: "<strong>ẑ₂</strong> — force Q" },
+        { color: '#22c55e', text: "<strong>ẑ₃</strong> — force S" }
+      ]
+    },
+    legendRightItems: {
+      fr: [
+        { color: '#eab308', text: "Polygone fermé" },
+        { color: '#a855f7', text: "Secteurs = cônes" }
+      ],
+      en: [
+        { color: '#eab308', text: "Closed polygon" },
+        { color: '#a855f7', text: "Sectors = cones" }
+      ]
+    },
+    params: {
+      m: { fr: 'Nombre de secteurs m', en: 'Number of sectors m' },
+      radius: { fr: 'Rayon', en: 'Radius' },
+      showPolygon: { fr: 'Polygone des forces', en: 'Force polygon' },
+      showEq: { fr: 'Équation ∑ẑᵢ=0', en: 'Equation ∑ẑᵢ=0' }
+    }
+  },
+  helixforces: {
+    title: {
+      fr: "Hélice 3D + forces de Lagrange",
+      en: "3D helix + Lagrange forces"
+    },
+    desc: {
+      fr: "L'hélice extrudée (secteurs × ℝ) porte les flèches de centroïdes comme des <strong>forces concourantes</strong> en O. L'axe vertical rappelle l'extension orthogonale du paper : la norme des moments est invariante par extrusion.",
+      en: "The extruded helix (sectors × ℝ) carries centroid arrows as <strong>concurrent forces</strong> at O. The vertical axis recalls the paper's orthogonal extension: the moment norm is invariant under extrusion."
+    },
+    legendLeftTitle: { fr: "Propeller", en: "Propeller" },
+    legendRightTitle: { fr: "Extrusion", en: "Extrusion" },
+    legendLeftItems: {
+      fr: [
+        { color: '#ef4444', text: "Secteur / force P" },
+        { color: '#3b82f6', text: "Secteur / force Q" },
+        { color: '#22c55e', text: "Secteur / force S" }
+      ],
+      en: [
+        { color: '#ef4444', text: "Sector / force P" },
+        { color: '#3b82f6', text: "Sector / force Q" },
+        { color: '#22c55e', text: "Sector / force S" }
+      ]
+    },
+    legendRightItems: {
+      fr: [
+        { color: '#eab308', text: "Axe orthogonal" },
+        { color: '#fff', text: "Norme ‖z‖ invariante" }
+      ],
+      en: [
+        { color: '#eab308', text: "Orthogonal axis" },
+        { color: '#fff', text: "Invariant norm ‖z‖" }
+      ]
+    },
+    params: {
+      m: { fr: 'Pales m', en: 'Blades m' },
+      radius: { fr: 'Rayon', en: 'Radius' },
+      height: { fr: 'Hauteur extrusion', en: 'Extrusion height' },
+      showAxis: { fr: 'Axe ℝ^{d−2}', en: 'Axis ℝ^{d−2}' },
+      showLabels: { fr: 'Labels P,Q,S', en: 'Labels P,Q,S' }
+    }
+  },
+  parallelogram: {
+    title: {
+      fr: "Fig. 6 — Théorème du parallélogramme des forces",
+      en: "Fig. 6 — Parallelogram law of forces"
+    },
+    desc: {
+      fr: "<strong>Leçon 3 §29</strong> — La résultante de deux forces concourantes est la diagonale du parallélogramme construit sur ces forces. Lien avec le propeller : la diagonale R est le lieu où deux scores s'égalisent (frontière de cônes).",
+      en: "<strong>Lesson 3 §29</strong> — The resultant of two concurrent forces is the diagonal of the parallelogram built on those forces. Link with the propeller: the diagonal R is the locus where two scores are equal (cone boundary)."
+    },
+    legendLeftTitle: { fr: "Forces", en: "Forces" },
+    legendRightTitle: { fr: "Dualité", en: "Duality" },
+    legendLeftItems: {
+      fr: [
+        { color: '#ef4444', text: "<strong>P</strong>" },
+        { color: '#3b82f6', text: "<strong>Q</strong>" },
+        { color: '#22c55e', text: "<strong>R = P+Q</strong>" }
+      ],
+      en: [
+        { color: '#ef4444', text: "<strong>P</strong>" },
+        { color: '#3b82f6', text: "<strong>Q</strong>" },
+        { color: '#22c55e', text: "<strong>R = P+Q</strong>" }
+      ]
+    },
+    legendRightItems: {
+      fr: [
+        { color: '#a855f7', text: "Diagonale = frontière" },
+        { color: '#eab308', text: "Côtés pointillés" }
+      ],
+      en: [
+        { color: '#a855f7', text: "Diagonal = boundary" },
+        { color: '#eab308', text: "Dashed sides" }
+      ]
+    },
+    params: {
+      aP: { fr: 'Longueur P', en: 'Length P' },
+      aQ: { fr: 'Longueur Q', en: 'Length Q' },
+      angle: { fr: 'Angle (rad)', en: 'Angle (rad)' },
+      lift: { fr: 'Élévation', en: 'Elevation' },
+      animateAngle: { fr: "Animer l'angle", en: 'Animate angle' }
+    }
+  },
+  parallelepiped: {
+    title: {
+      fr: "Parallélépipède 3D → dimension d",
+      en: "3D parallelepiped → dimension d"
+    },
+    desc: {
+      fr: "Parallélépipède sur P, Q, S : analogue 3D de l'extension orthogonale. La diagonale R est préservée comme ‖z(Aᵢ)‖ sous produit par ℝ^{d−2}.",
+      en: "Parallelepiped on P, Q, S: 3D analogue of the orthogonal extension. The diagonal R is preserved as ‖z(Aᵢ)‖ under product by ℝ^{d−2}."
+    },
+    legendLeftTitle: { fr: "Arêtes", en: "Edges" },
+    legendRightTitle: { fr: "Diagonale", en: "Diagonal" },
+    legendLeftItems: {
+      fr: [
+        { color: '#ef4444', text: "<strong>P</strong> — x" },
+        { color: '#3b82f6', text: "<strong>Q</strong> — y" },
+        { color: '#eab308', text: "<strong>S</strong> — z" }
+      ],
+      en: [
+        { color: '#ef4444', text: "<strong>P</strong> — x" },
+        { color: '#3b82f6', text: "<strong>Q</strong> — y" },
+        { color: '#eab308', text: "<strong>S</strong> — z" }
+      ]
+    },
+    legendRightItems: {
+      fr: [
+        { color: '#22c55e', text: "<strong>R = P+Q+S</strong>" },
+        { color: '#8c8caa', text: "Squelette" }
+      ],
+      en: [
+        { color: '#22c55e', text: "<strong>R = P+Q+S</strong>" },
+        { color: '#8c8caa', text: "Skeleton" }
+      ]
+    },
+    params: {
+      aP: { fr: 'Longueur P', en: 'Length P' },
+      aQ: { fr: 'Longueur Q', en: 'Length Q' },
+      aS: { fr: 'Longueur S', en: 'Length S' },
+      showFaces: { fr: 'Faces semi-transparentes', en: 'Semi-transparent faces' }
+    }
+  },
+  forcebalance: {
+    title: {
+      fr: "Équilibre 3D de trois forces",
+      en: "3D equilibrium of three forces"
+    },
+    desc: {
+      fr: "Trois forces non coplanaires dont la somme est nulle. Le polygone doré se referme dans l'espace : même principe que ∑ẑᵢ = 0 pour le propeller, en 3D.",
+      en: "Three non-coplanar forces whose sum is zero. The golden polygon closes in space: same principle as ∑ẑᵢ = 0 for the propeller, in 3D."
+    },
+    legendLeftTitle: { fr: "Forces", en: "Forces" },
+    legendRightTitle: { fr: "Fermeture", en: "Closure" },
+    legendLeftItems: {
+      fr: [
+        { color: '#ef4444', text: "P" },
+        { color: '#3b82f6', text: "Q" },
+        { color: '#22c55e', text: "S = −P−Q" }
+      ],
+      en: [
+        { color: '#ef4444', text: "P" },
+        { color: '#3b82f6', text: "Q" },
+        { color: '#22c55e', text: "S = −P−Q" }
+      ]
+    },
+    legendRightItems: {
+      fr: [
+        { color: '#eab308', text: "Polygone des forces" },
+        { color: '#a855f7', text: "Plan exact des forces" }
+      ],
+      en: [
+        { color: '#eab308', text: "Force polygon" },
+        { color: '#a855f7', text: "Exact force plane" }
+      ]
+    },
+    params: {
+      scale: { fr: 'Échelle', en: 'Scale' },
+      showPlane: { fr: 'Plan de référence', en: 'Reference plane' }
+    }
+  },
+  parallel: {
+    title: {
+      fr: "Fig. 5 — Forces parallèles",
+      en: "Fig. 5 — Parallel forces"
+    },
+    desc: {
+      fr: "<strong>Leçon 3 §27</strong> — Deux forces parallèles P et Q appliquées en A et B. La résultante R = P+Q s'applique en C tel que AC/CB = Q/P. Composition successive des forces parallèles.",
+      en: "<strong>Lesson 3 §27</strong> — Two parallel forces P and Q applied at A and B. The resultant R = P+Q acts at C such that AC/CB = Q/P. Successive composition of parallel forces."
+    },
+    legendLeftTitle: { fr: "Forces", en: "Forces" },
+    legendRightTitle: { fr: "Levier", en: "Lever" },
+    legendLeftItems: {
+      fr: [
+        { color: '#ef4444', text: "P en A" },
+        { color: '#3b82f6', text: "Q en B" },
+        { color: '#22c55e', text: "R en C" }
+      ],
+      en: [
+        { color: '#ef4444', text: "P at A" },
+        { color: '#3b82f6', text: "Q at B" },
+        { color: '#22c55e', text: "R at C" }
+      ]
+    },
+    legendRightItems: {
+      fr: [
+        { color: '#eab308', text: "AC/CB = Q/P" },
+        { color: '#fff', text: "Même sens → somme" }
+      ],
+      en: [
+        { color: '#eab308', text: "AC/CB = Q/P" },
+        { color: '#fff', text: "Same direction → sum" }
+      ]
+    },
+    params: {
+      P: { fr: 'Force P', en: 'Force P' },
+      Q: { fr: 'Force Q', en: 'Force Q' }
+    }
+  },
+  /* ─── HYDRO ─── */
+  dipole: {
+    title: {
+      fr: "Dipôle source/puits ↔ deux scores",
+      en: "Source/sink dipole ↔ two scores"
+    },
+    desc: {
+      fr: "Dipôle hydrostatique : visualisation du Lemme 2.2 — deux cônes « dos à dos » avec ⟨zᵢ,zⱼ⟩ < 0. La médiatrice = frontière où les scores s'égalisent.",
+      en: "Hydrostatic dipole: visualization of Lemma 2.2 — two 'back-to-back' cones with ⟨zᵢ,zⱼ⟩ < 0. The perpendicular bisector = boundary where scores are equal."
+    },
+    legendLeftTitle: { fr: "Charges", en: "Charges" },
+    legendRightTitle: { fr: "Lignes", en: "Lines" },
+    legendLeftItems: {
+      fr: [
+        { color: '#ef4444', text: "+ source" },
+        { color: '#3b82f6', text: "− puits" }
+      ],
+      en: [
+        { color: '#ef4444', text: "+ source" },
+        { color: '#3b82f6', text: "− sink" }
+      ]
+    },
+    legendRightItems: {
+      fr: [
+        { color: '#78b4ff', text: "Lignes de courant" },
+        { color: '#ffcc55', text: "Champ local" }
+      ],
+      en: [
+        { color: '#78b4ff', text: "Streamlines" },
+        { color: '#ffcc55', text: "Local field" }
+      ]
+    },
+    params: {
+      d: { fr: 'Distance source-puits', en: 'Source-sink distance' },
+      nLines: { fr: 'Lignes de courant', en: 'Streamlines' },
+      showField: { fr: 'Petites flèches de champ', en: 'Small field arrows' }
+    }
+  },
+  hexapole: {
+    title: {
+      fr: "Hexapôle 2D (plan) ↔ propeller m = 6",
+      en: "2D hexapole (plane) ↔ propeller m = 6"
+    },
+    desc: {
+      fr: "Hexapôle (3+ / 3−) : même symétrie C₃ que le propeller à m=3. Décomposition en contributions positives et négatives des moments z(Aᵢ).",
+      en: "Hexapole (3+ / 3−): same C₃ symmetry as the m=3 propeller. Decomposition into positive and negative contributions of moments z(Aᵢ)."
+    },
+    legendLeftTitle: { fr: "Charges (plan y=0)", en: "Charges (plane y=0)" },
+    legendRightTitle: { fr: "Champ", en: "Field" },
+    legendLeftItems: {
+      fr: [
+        { color: '#ef4444', text: "3 sources + (plan)" },
+        { color: '#3b82f6', text: "3 puits − (plan)" }
+      ],
+      en: [
+        { color: '#ef4444', text: "3 sources + (plane)" },
+        { color: '#3b82f6', text: "3 sinks − (plane)" }
+      ]
+    },
+    legendRightItems: {
+      fr: [
+        { color: '#ffcc55', text: "Flèches de champ" },
+        { color: '#a855f7', text: "m = 6 cellules" }
+      ],
+      en: [
+        { color: '#ffcc55', text: "Field arrows" },
+        { color: '#a855f7', text: "m = 6 cells" }
+      ]
+    },
+    params: {
+      R: { fr: 'Rayon des charges', en: 'Charge radius' },
+      showField: { fr: 'Champ de flèches', en: 'Arrow field' }
+    }
+  },
+  coulomb: {
+    title: {
+      fr: "Coulomb / Gauss — champ 1/r²",
+      en: "Coulomb / Gauss — 1/r² field"
+    },
+    desc: {
+      fr: "Loi de Coulomb et théorème de Gauss : le flux à travers une sphère est constant (q/ε₀), le champ décroît en 1/r². Analogie visuelle avec les lignes de courant et les partitions de scores du propeller.",
+      en: "Coulomb's law and Gauss's theorem: the flux through a sphere is constant (q/ε₀), the field decays as 1/r². Visual analogy with streamlines and propeller score partitions."
+    },
+    legendLeftTitle: { fr: "Charge", en: "Charge" },
+    legendRightTitle: { fr: "Gauss", en: "Gauss" },
+    legendLeftItems: {
+      fr: [
+        { color: '#ef4444', text: "+q (divergent)" },
+        { color: '#3b82f6', text: "−q (convergent)" }
+      ],
+      en: [
+        { color: '#ef4444', text: "+q (divergent)" },
+        { color: '#3b82f6', text: "−q (convergent)" }
+      ]
+    },
+    legendRightItems: {
+      fr: [
+        { color: '#64dcff', text: "Sphères r₁, r₂, r₃" },
+        { color: '#eab308', text: "Φ constant" }
+      ],
+      en: [
+        { color: '#64dcff', text: "Spheres r₁, r₂, r₃" },
+        { color: '#eab308', text: "Φ constant" }
+      ]
+    },
+    params: {
+      sign: { fr: 'Signe (+1 / −1)', en: 'Sign (+1 / −1)' },
+      nRays: { fr: 'Nombre de rayons', en: 'Number of rays' },
+      showSpheres: { fr: 'Sphères de Gauss', en: 'Gaussian spheres' }
+    }
+  },
+  flux: {
+    title: {
+      fr: "Flux de champ — surface de Gauss",
+      en: "Field flux — Gaussian surface"
+    },
+    caption: {
+      fr: "Flèches = flux à travers S  ·  indépendant du rayon de la sphère",
+      en: "Arrows = flux through S  ·  independent of sphere radius"
+    },
+    desc: {
+      fr: "Théorème de Gauss : le flux total de E à travers une surface fermée ne dépend que de la charge intérieure. Les flèches sur la sphère illustrent E·n ; leur intégrale reste q/ε₀.",
+      en: "Gauss's theorem: the total flux of E through a closed surface depends only on the enclosed charge. The arrows on the sphere illustrate E·n; their integral remains q/ε₀."
+    },
+    legendLeftTitle: { fr: "Champ", en: "Field" },
+    legendRightTitle: { fr: "Gauss", en: "Gauss" },
+    legendLeftItems: {
+      fr: [
+        { color: '#ef4444', text: "+q (flux sortant)" },
+        { color: '#3b82f6', text: "−q (flux entrant)" }
+      ],
+      en: [
+        { color: '#ef4444', text: "+q (outgoing flux)" },
+        { color: '#3b82f6', text: "−q (incoming flux)" }
+      ]
+    },
+    legendRightItems: {
+      fr: [
+        { color: '#64dcff', text: "Surface S" },
+        { color: '#eab308', text: "Φ = q/ε₀" }
+      ],
+      en: [
+        { color: '#64dcff', text: "Surface S" },
+        { color: '#eab308', text: "Φ = q/ε₀" }
+      ]
+    },
+    params: {
+      sign: { fr: 'Signe (+1 / −1)', en: 'Sign (+1 / −1)' },
+      radius: { fr: 'Rayon surface', en: 'Surface radius' },
+      nRays: { fr: 'Rayons de flux', en: 'Flux rays' },
+      showSurface: { fr: 'Surface de Gauss', en: 'Gaussian surface' }
+    }
+  },
+  voronoi: {
+    title: {
+      fr: "Bassins d'attraction & Voronoi",
+      en: "Basins of attraction & Voronoi"
+    },
+    caption: {
+      fr: "Partition de Voronoi pondérée  ·  analogie des cônes Kᵢ du propeller",
+      en: "Weighted Voronoi partition  ·  analogy with propeller cones Kᵢ"
+    },
+    desc: {
+      fr: "Chaque couleur est le bassin d'attraction d'une charge (Voronoi pondéré par |q|). Analogie directe avec les cônes de score Kᵢ : le plan se partitionne en régions dominées par un centroïde / une charge.",
+      en: "Each color is the basin of attraction of a charge (Voronoi weighted by |q|). Direct analogy with score cones Kᵢ: the plane partitions into regions dominated by a centroid / charge."
+    },
+    legendLeftTitle: { fr: "Charges", en: "Charges" },
+    legendRightTitle: { fr: "Partition", en: "Partition" },
+    legendLeftItems: {
+      fr: [
+        { color: '#ef4444', text: "Positive +" },
+        { color: '#3b82f6', text: "Négative −" }
+      ],
+      en: [
+        { color: '#ef4444', text: "Positive +" },
+        { color: '#3b82f6', text: "Negative −" }
+      ]
+    },
+    legendRightItems: {
+      fr: [
+        { color: '#eab308', text: "Bassins Aᵢ" },
+        { color: '#a855f7', text: "≈ cônes Kᵢ" }
+      ],
+      en: [
+        { color: '#eab308', text: "Basins Aᵢ" },
+        { color: '#a855f7', text: "≈ cones Kᵢ" }
+      ]
+    },
+    params: {
+      mode: { fr: 'Config 0–3', en: 'Config 0–3' },
+      resolution: { fr: 'Résolution grille', en: 'Grid resolution' },
+      nSeeds: { fr: 'Lignes de champ', en: 'Field lines' },
+      showBasins: { fr: 'Bassins colorés', en: 'Colored basins' },
+      showField: { fr: 'Lignes de champ', en: 'Field lines' },
+      showBoundaries: { fr: 'Frontières', en: 'Boundaries' }
+    }
+  },
+  /* ─── PONTS ─── */
+  streamcone: {
+    title: {
+      fr: "Lignes de courant ↔ cônes Kᵢ",
+      en: "Streamlines ↔ cones Kᵢ"
+    },
+    caption: {
+      fr: "Lignes de courant (bleu) → centre  ·  frontières des cônes Kᵢ (violet)",
+      en: "Streamlines (blue) → center  ·  cone boundaries Kᵢ (purple)"
+    },
+    desc: {
+      fr: "Lignes de courant hydrostatiques vs frontières des cônes de score. Le paramètre Courbure spirale contrôle l'enroulement (0 = radial, 1.2 = spirale). La partition Aᵢ est le bassin d'attraction du centroïde zᵢ.",
+      en: "Hydrostatic streamlines vs score cone boundaries. The Spiral curvature parameter controls winding (0 = radial, 1.2 = spiral). The partition Aᵢ is the basin of attraction of centroid zᵢ."
+    },
+    legendLeftTitle: { fr: "Cônes", en: "Cones" },
+    legendRightTitle: { fr: "Courant", en: "Flow" },
+    legendLeftItems: {
+      fr: [
+        { color: '#ef4444', text: "K₁" },
+        { color: '#3b82f6', text: "K₂" },
+        { color: '#22c55e', text: "K₃" },
+        { color: '#a855f7', text: "K₄" },
+        { color: '#eab308', text: "K₅" },
+        { color: '#06b6d4', text: "K₆" }
+      ],
+      en: [
+        { color: '#ef4444', text: "K₁" },
+        { color: '#3b82f6', text: "K₂" },
+        { color: '#22c55e', text: "K₃" },
+        { color: '#a855f7', text: "K₄" },
+        { color: '#eab308', text: "K₅" },
+        { color: '#06b6d4', text: "K₆" }
+      ]
+    },
+    legendRightItems: {
+      fr: [
+        { color: '#78b4ff', text: "Lignes de courant" },
+        { color: '#eab308', text: "Centre = source" }
+      ],
+      en: [
+        { color: '#78b4ff', text: "Streamlines" },
+        { color: '#eab308', text: "Center = source" }
+      ]
+    },
+    params: {
+      m: { fr: 'Nombre de cônes', en: 'Number of cones' },
+      radius: { fr: 'Rayon', en: 'Radius' },
+      nLines: { fr: 'Lignes de courant', en: 'Streamlines' },
+      spiral: { fr: 'Courbure spirale', en: 'Spiral curvature' }
+    }
+  },
+  cellcomp: {
+    title: {
+      fr: "Cellule vs complémentaire",
+      en: "Cell vs complement"
+    },
+    desc: {
+      fr: "Cellule A et complémentaire Aᶜ : centroïdes opposés. Analogue de la borne Pᵢ ≥ A rᵢ² du Lemme 3.1 (réarrangement demi-espace).",
+      en: "Cell A and complement Aᶜ: opposite centroids. Analogue of the bound Pᵢ ≥ A rᵢ² from Lemma 3.1 (half-space rearrangement)."
+    },
+    legendLeftTitle: { fr: "Cellules", en: "Cells" },
+    legendRightTitle: { fr: "Centroïdes", en: "Centroids" },
+    legendLeftItems: {
+      fr: [
+        { color: '#ef4444', text: "A" },
+        { color: '#3b82f6', text: "Aᶜ" }
+      ],
+      en: [
+        { color: '#ef4444', text: "A" },
+        { color: '#3b82f6', text: "Aᶜ" }
+      ]
+    },
+    legendRightItems: {
+      fr: [
+        { color: '#ef4444', text: "z(A)" },
+        { color: '#3b82f6', text: "z(Aᶜ)=−z(A)" }
+      ],
+      en: [
+        { color: '#ef4444', text: "z(A)" },
+        { color: '#3b82f6', text: "z(Aᶜ)=−z(A)" }
+      ]
+    },
+    params: {
+      angle: { fr: 'Demi-angle', en: 'Half-angle' },
+      radius: { fr: 'Rayon', en: 'Radius' },
+      animate: { fr: "Animer l'angle", en: 'Animate angle' }
+    }
+  },
+  bridge: {
+    title: {
+      fr: "Pont Propeller ⊕ Graphe ⊕ Forces",
+      en: "Propeller bridge ⊕ Graph ⊕ Forces"
+    },
+    desc: {
+      fr: "Commutation visuelle : secteurs du propeller, sommets d'un graphe régulier colorés par secteur, flèches = centroïdes/forces. Une seule figure pour Lagrange, Gauss et Ramanujan.",
+      en: "Visual commutation: propeller sectors, vertices of a regular graph colored by sector, arrows = centroids/forces. A single figure for Lagrange, Gauss and Ramanujan."
+    },
+    legendLeftTitle: { fr: "Couches", en: "Layers" },
+    legendRightTitle: { fr: "Lecture", en: "Reading" },
+    legendLeftItems: {
+      fr: [
+        { color: '#ef4444', text: "Secteur / cluster" },
+        { color: '#7dd3fc', text: "Sommets" },
+        { color: '#eab308', text: "Forces" }
+      ],
+      en: [
+        { color: '#ef4444', text: "Sector / cluster" },
+        { color: '#7dd3fc', text: "Vertices" },
+        { color: '#eab308', text: "Forces" }
+      ]
+    },
+    legendRightItems: {
+      fr: [
+        { color: '#a855f7', text: "Bassins de scores" },
+        { color: '#22c55e', text: "Équilibre ∑ẑᵢ=0" }
+      ],
+      en: [
+        { color: '#a855f7', text: "Score basins" },
+        { color: '#22c55e', text: "Equilibrium ∑ẑᵢ=0" }
+      ]
+    },
+    params: {
+      m: { fr: 'Secteurs m', en: 'Sectors m' },
+      n: { fr: 'Sommets n', en: 'Vertices n' },
+      showForces: { fr: 'Forces ẑᵢ', en: 'Forces ẑᵢ' },
+      showGraph: { fr: 'Graphe', en: 'Graph' }
+    }
+  },
+  perspective: {
+    title: {
+      fr: "Perspective unifiée bassins·forces·flux",
+      en: "Unified perspective basins·forces·flux"
+    },
+    caption: {
+      fr: "Une figure : secteurs = bassins = cônes  ·  flèches = forces  ·  flux locaux",
+      en: "One figure: sectors = basins = cones  ·  arrows = forces  ·  local fluxes"
+    },
+    desc: {
+      fr: "Nouvelle perspective pédagogique : superposer partitions (cônes/bassins), équilibre des forces (centroïdes) et flux de champ sortant de chaque bassin — pont Gauss / Lagrange / propeller.",
+      en: "New pedagogical perspective: overlay partitions (cones/basins), force equilibrium (centroids) and outgoing field flux from each basin — bridge Gauss / Lagrange / propeller."
+    },
+    legendLeftTitle: { fr: "Couches", en: "Layers" },
+    legendRightTitle: { fr: "Lecture", en: "Reading" },
+    legendLeftItems: {
+      fr: [
+        { color: '#ef4444', text: "Bassin / cône" },
+        { color: '#eab308', text: "Force" },
+        { color: '#7dd3fc', text: "Flux" }
+      ],
+      en: [
+        { color: '#ef4444', text: "Basin / cone" },
+        { color: '#eab308', text: "Force" },
+        { color: '#7dd3fc', text: "Flux" }
+      ]
+    },
+    legendRightItems: {
+      fr: [
+        { color: '#a855f7', text: "Partition de l'espace" },
+        { color: '#22c55e', text: "∑ẑᵢ = 0" }
+      ],
+      en: [
+        { color: '#a855f7', text: "Space partition" },
+        { color: '#22c55e', text: "∑ẑᵢ = 0" }
+      ]
+    },
+    params: {
+      m: { fr: 'Nombre de bassins', en: 'Number of basins' },
+      showForces: { fr: 'Forces ẑᵢ', en: 'Forces ẑᵢ' },
+      showFlux: { fr: 'Flux locaux', en: 'Local fluxes' }
+    }
+  },
+  /* ─── GRAPHES ─── */
+  ramgraph: {
+    title: {
+      fr: "Graphe de Ramanujan (quasi-régulier)",
+      en: "Ramanujan graph (quasi-regular)"
+    },
+    desc: {
+      fr: "Graphe quasi-régulier (plus proches voisins sur la sphère). La borne 2√(d−1) est une référence théorique Ramanujan — ce n'est pas un vrai graphe de Ramanujan. Expansion visuelle + sous-ensemble S.",
+      en: "Quasi-regular graph (nearest neighbors on the sphere). The bound 2√(d−1) is a Ramanujan theoretical reference — this is not a true Ramanujan graph. Visual expansion + subset S."
+    },
+    legendLeftTitle: { fr: "Graphe", en: "Graph" },
+    legendRightTitle: { fr: "Ramanujan", en: "Ramanujan" },
+    legendLeftItems: {
+      fr: [
+        { color: '#7dd3fc', text: "Sommets V" },
+        { color: '#7dd3fc', text: "Arêtes E" },
+        { color: '#fbbf24', text: "S ⊂ V" }
+      ],
+      en: [
+        { color: '#7dd3fc', text: "Vertices V" },
+        { color: '#7dd3fc', text: "Edges E" },
+        { color: '#fbbf24', text: "S ⊂ V" }
+      ]
+    },
+    legendRightItems: {
+      fr: [
+        { color: '#fbbf24', text: "λ₂ ≤ 2√(d−1)" },
+        { color: '#22c55e', text: "Expansion max." }
+      ],
+      en: [
+        { color: '#fbbf24', text: "λ₂ ≤ 2√(d−1)" },
+        { color: '#22c55e', text: "Max. expansion" }
+      ]
+    },
+    params: {
+      n: { fr: 'Sommets n', en: 'Vertices n' },
+      degree: { fr: 'Degré d', en: 'Degree d' },
+      showGap: { fr: 'Borne λ₂', en: 'Bound λ₂' },
+      showExpand: { fr: 'Sous-ensemble S', en: 'Subset S' }
+    }
+  },
+  spectral: {
+    title: {
+      fr: "Illustration de la borne de Ramanujan",
+      en: "Illustration of the Ramanujan bound"
+    },
+    desc: {
+      fr: "Visualisation du spectre : valeur d (degré) isolée, reste dans l'intervalle de Ramanujan. Lien avec le gap spectral qui contrôle l'expansion — outil des réductions NP-hard.",
+      en: "Spectrum visualization: isolated eigenvalue d (degree), rest in the Ramanujan interval. Link with the spectral gap that controls expansion — a tool for NP-hard reductions."
+    },
+    legendLeftTitle: { fr: "Valeurs", en: "Values" },
+    legendRightTitle: { fr: "Interprétation", en: "Interpretation" },
+    legendLeftItems: {
+      fr: [
+        { color: '#ef4444', text: "λ₁ = d" },
+        { color: '#7dd3fc', text: "λ dans la borne" },
+        { color: '#f87171', text: "Hors borne" }
+      ],
+      en: [
+        { color: '#ef4444', text: "λ₁ = d" },
+        { color: '#7dd3fc', text: "λ within bound" },
+        { color: '#f87171', text: "Outside bound" }
+      ]
+    },
+    legendRightItems: {
+      fr: [
+        { color: '#22c55e', text: "Bon expanseur" },
+        { color: '#fbbf24', text: "Gap spectral" }
+      ],
+      en: [
+        { color: '#22c55e', text: "Good expander" },
+        { color: '#fbbf24', text: "Spectral gap" }
+      ]
+    },
+    params: {
+      n: { fr: 'Taille spectre', en: 'Spectrum size' },
+      degree: { fr: 'Degré d', en: 'Degree d' }
+    }
+  },
+  clusters: {
+    title: {
+      fr: "Clusters 3D — 4 méthodes",
+      en: "3D clusters — 4 methods"
+    },
+    desc: {
+      fr: "Quatre modes de clustering (angulaire = propeller, latitude, spectral, marche aléatoire). Centroïdes des clusters = forces du propeller. Arêtes or = coupe inter-clusters (lien Max-k-Cut / UGC).",
+      en: "Four clustering modes (angular = propeller, latitude, spectral, random walk). Cluster centroids = propeller forces. Golden edges = inter-cluster cut (link Max-k-Cut / UGC)."
+    },
+    legendLeftTitle: { fr: "Méthodes", en: "Methods" },
+    legendRightTitle: { fr: "Pont", en: "Bridge" },
+    legendLeftItems: {
+      fr: [
+        { color: '#eab308', text: "0 angulaire (propeller)" },
+        { color: '#3b82f6', text: "1 latitude" },
+        { color: '#a855f7', text: "2 angulaire animé" },
+        { color: '#06b6d4', text: "3 random-walk" }
+      ],
+      en: [
+        { color: '#eab308', text: "0 angular (propeller)" },
+        { color: '#3b82f6', text: "1 latitude" },
+        { color: '#a855f7', text: "2 animated angular" },
+        { color: '#06b6d4', text: "3 random-walk" }
+      ]
+    },
+    legendRightItems: {
+      fr: [
+        { color: '#fbbf24', text: "Coupe (arêtes or)" },
+        { color: '#ef4444', text: "Centroïdes ẑᵢ" }
+      ],
+      en: [
+        { color: '#fbbf24', text: "Cut (golden edges)" },
+        { color: '#ef4444', text: "Centroids ẑᵢ" }
+      ]
+    },
+    params: {
+      n: { fr: 'Sommets n', en: 'Vertices n' },
+      degree: { fr: 'Degré d', en: 'Degree d' },
+      k: { fr: 'Clusters k', en: 'Clusters k' },
+      method: { fr: 'Méthode 0–3', en: 'Method 0–3' },
+      showEdges: { fr: 'Arêtes', en: 'Edges' },
+      showCenters: { fr: 'Centroïdes', en: 'Centroids' }
+    }
+  },
+  delaunay: {
+    title: {
+      fr: "Polyèdres de Delaunay ↔ Voronoi",
+      en: "Delaunay polyhedra ↔ Voronoi"
+    },
+    caption: {
+      fr: "Cyan = Delaunay  ·  Or = Voronoi (dual)  ·  Violet = cercles  ·  slider Étape algo 0–4",
+      en: "Cyan = Delaunay  ·  Gold = Voronoi (dual)  ·  Purple = circles  ·  slider Algorithm step 0–4"
+    },
+    desc: {
+      fr: "Algo pédagogique : (1) sites (2) triangles Delaunay = cercle circonscrit vide (3) centres = sommets Voronoi (4) dual. Critère de Lawson / Bowyer–Watson : aucune point dans un cercle circonscrit. Lien bassins d'attraction et cônes Kᵢ.",
+      en: "Pedagogical algorithm: (1) sites (2) Delaunay triangles = empty circumcircle (3) centers = Voronoi vertices (4) dual. Lawson / Bowyer–Watson criterion: no point inside any circumcircle. Link with basins of attraction and cones Kᵢ."
+    },
+    legendLeftTitle: { fr: "Delaunay", en: "Delaunay" },
+    legendRightTitle: { fr: "Dual", en: "Dual" },
+    legendLeftItems: {
+      fr: [
+        { color: '#7dd3fc', text: "Triangles" },
+        { color: '#a855f7', text: "Cercles circonscrits" }
+      ],
+      en: [
+        { color: '#7dd3fc', text: "Triangles" },
+        { color: '#a855f7', text: "Circumcircles" }
+      ]
+    },
+    legendRightItems: {
+      fr: [
+        { color: '#fbbf24', text: "Voronoi" },
+        { color: '#22c55e', text: "Sites" }
+      ],
+      en: [
+        { color: '#fbbf24', text: "Voronoi" },
+        { color: '#22c55e', text: "Sites" }
+      ]
+    },
+    params: {
+      n: { fr: 'Nombre de sites', en: 'Number of sites' },
+      algoStep: { fr: 'Étape algo 0–4', en: 'Algorithm step 0–4' },
+      showDelaunay: { fr: 'Triangles Delaunay', en: 'Delaunay triangles' },
+      showVoronoi: { fr: 'Arêtes Voronoi', en: 'Voronoi edges' },
+      showCircum: { fr: 'Cercles circonscrits', en: 'Circumcircles' },
+      showDual: { fr: 'Liens dualité', en: 'Duality links' }
+    }
+  },
+  /* ─── NP-HARD ─── */
+  ugc: {
+    title: {
+      fr: "Unique Games — SDP + hyperplan",
+      en: "Unique Games — SDP + hyperplane"
+    },
+    desc: {
+      fr: "Vecteurs SDP sur la sphère + hyperplan aléatoire (arrondi gaussien). Completeness vs soundness : cœur des preuves de dureté NP-hard via UGC, relié au propeller et au facteur α_k.",
+      en: "SDP vectors on the sphere + random hyperplane (Gaussian rounding). Completeness vs soundness: core of NP-hard hardness proofs via UGC, linked to the propeller and the factor α_k."
+    },
+    legendLeftTitle: { fr: "SDP", en: "SDP" },
+    legendRightTitle: { fr: "Dureté", en: "Hardness" },
+    legendLeftItems: {
+      fr: [
+        { color: '#ef4444', text: "Vecteurs uᵢ" },
+        { color: '#fbbf24', text: "Hyperplan g" }
+      ],
+      en: [
+        { color: '#ef4444', text: "Vectors uᵢ" },
+        { color: '#fbbf24', text: "Hyperplane g" }
+      ]
+    },
+    legendRightItems: {
+      fr: [
+        { color: '#22c55e', text: "Completeness" },
+        { color: '#f43f5e', text: "Soundness" }
+      ],
+      en: [
+        { color: '#22c55e', text: "Completeness" },
+        { color: '#f43f5e', text: "Soundness" }
+      ]
+    },
+    params: {
+      n: { fr: 'Vecteurs n', en: 'Vectors n' },
+      k: { fr: 'Labels k', en: 'Labels k' },
+      completeness: { fr: 'Mode completeness', en: 'Completeness mode' }
+    }
+  },
+  expansion: {
+    title: {
+      fr: "Expansion vs coupe (Max-Cut)",
+      en: "Expansion vs cut (Max-Cut)"
+    },
+    desc: {
+      fr: "Sous-ensemble S et arêtes de bord (or). L'expansion des graphes de Ramanujan est quasi optimale — base des réductions NP-hard (Max-Cut, Unique Games). Analogie avec la frontière des cônes du propeller.",
+      en: "Subset S and boundary edges (gold). Ramanujan graph expansion is near-optimal — basis of NP-hard reductions (Max-Cut, Unique Games). Analogy with the propeller cone boundary."
+    },
+    legendLeftTitle: { fr: "Partition", en: "Partition" },
+    legendRightTitle: { fr: "Dureté", en: "Hardness" },
+    legendLeftItems: {
+      fr: [
+        { color: '#fbbf24', text: "S" },
+        { color: '#7dd3fc', text: "V \\ S" },
+        { color: '#fbbf24', text: "∂S (coupe)" }
+      ],
+      en: [
+        { color: '#fbbf24', text: "S" },
+        { color: '#7dd3fc', text: "V \\ S" },
+        { color: '#fbbf24', text: "∂S (cut)" }
+      ]
+    },
+    legendRightItems: {
+      fr: [
+        { color: '#f43f5e', text: "Max-Cut" },
+        { color: '#a855f7', text: "UGC" }
+      ],
+      en: [
+        { color: '#f43f5e', text: "Max-Cut" },
+        { color: '#a855f7', text: "UGC" }
+      ]
+    },
+    params: {
+      n: { fr: 'Sommets n', en: 'Vertices n' },
+      degree: { fr: 'Degré d', en: 'Degree d' },
+      cutRatio: { fr: 'Ratio |S|/n', en: 'Ratio |S|/n' }
+    }
+  },
+  maxcut: {
+    title: {
+      fr: "Max-Cut — SDP + hyperplan (GW)",
+      en: "Max-Cut — SDP + hyperplane (GW)"
+    },
+    caption: {
+      fr: "Arêtes or = coupe  ·  rouge / bleu = côtés  ·  cut/SDP peut dépasser 1 sur une instance ; en espérance ≥ α_GW",
+      en: "Golden edges = cut  ·  red / blue = sides  ·  cut/SDP may exceed 1 on an instance; in expectation ≥ α_GW"
+    },
+    desc: {
+      fr: "Démonstration vivante de Goemans–Williamson : vecteurs SDP, hyperplan gaussien g, cut obtenu par signes ⟨u_i,g⟩. Comparaison cut réel vs valeur SDP. Sous UGC, α_GW est optimal.",
+      en: "Live Goemans–Williamson demo: SDP vectors, Gaussian hyperplane g, cut obtained by signs ⟨u_i,g⟩. Comparison of actual cut vs SDP value. Under UGC, α_GW is optimal."
+    },
+    legendLeftTitle: { fr: "Cut", en: "Cut" },
+    legendRightTitle: { fr: "Garantie", en: "Guarantee" },
+    legendLeftItems: {
+      fr: [
+        { color: '#ef4444', text: "Côté +" },
+        { color: '#3b82f6', text: "Côté −" },
+        { color: '#fbbf24', text: "Arête coupée" }
+      ],
+      en: [
+        { color: '#ef4444', text: "Side +" },
+        { color: '#3b82f6', text: "Side −" },
+        { color: '#fbbf24', text: "Cut edge" }
+      ]
+    },
+    legendRightItems: {
+      fr: [
+        { color: '#22c55e', text: "α_GW ≈ 0.878" },
+        { color: '#a855f7', text: "Optimal sous UGC" }
+      ],
+      en: [
+        { color: '#22c55e', text: "α_GW ≈ 0.878" },
+        { color: '#a855f7', text: "Optimal under UGC" }
+      ]
+    },
+    params: {
+      n: { fr: 'Sommets n', en: 'Vertices n' },
+      density: { fr: "Densité d'arêtes", en: 'Edge density' }
+    }
+  },
+  grothendieck: {
+    title: {
+      fr: "Borne de Grothendieck K_G",
+      en: "Grothendieck bound K_G"
+    },
+    caption: {
+      fr: "K_G ∈ [1.676, 1.782]  ·  Max-Cut / SDP sont des cas particuliers de formes quadratiques",
+      en: "K_G ∈ [1.676, 1.782]  ·  Max-Cut / SDP are special cases of quadratic forms"
+    },
+    desc: {
+      fr: "Inégalité de Grothendieck : le passage des vecteurs unitaires aux signes ±1 coûte au plus K_G. La constante universelle lie SDP et optimisation booléenne — même géométrie que l'arrondi Max-Cut.",
+      en: "Grothendieck inequality: switching from unit vectors to ±1 signs costs at most K_G. This universal constant links SDP and Boolean optimization — same geometry as Max-Cut rounding."
+    },
+    legendLeftTitle: { fr: "Formes", en: "Forms" },
+    legendRightTitle: { fr: "Constantes", en: "Constants" },
+    legendLeftItems: {
+      fr: [
+        { color: '#7dd3fc', text: "Vecteurs u_i" },
+        { color: '#22c55e', text: "a_ij > 0" },
+        { color: '#ef4444', text: "a_ij < 0" }
+      ],
+      en: [
+        { color: '#7dd3fc', text: "Vectors u_i" },
+        { color: '#22c55e', text: "a_ij > 0" },
+        { color: '#ef4444', text: "a_ij < 0" }
+      ]
+    },
+    legendRightItems: {
+      fr: [
+        { color: '#eab308', text: "ratio SDP/bool" },
+        { color: '#22c55e', text: "K_G ≤ 1.782" },
+        { color: '#3b82f6', text: "K_G ≥ 1.676" }
+      ],
+      en: [
+        { color: '#eab308', text: "ratio SDP/bool" },
+        { color: '#22c55e', text: "K_G ≤ 1.782" },
+        { color: '#3b82f6', text: "K_G ≥ 1.676" }
+      ]
+    },
+    params: {
+      n: { fr: 'Dimension n', en: 'Dimension n' }
+    }
+  },
+  /* ─── PROPELLER ─── */
+  gaussround: {
+    title: {
+      fr: "Arrondi gaussien (Thm 2.1)",
+      en: "Gaussian rounding (Thm 2.1)"
+    },
+    desc: {
+      fr: "Vecteurs SDP uᵢ sur la sphère + direction aléatoire g ∼ 𝒩(0,I). L'arrondi par scores ⟨uᵢ,g⟩ est l'analogue d'une projection de forces sur un axe aléatoire — lien direct avec le facteur α_k du kernel-clustering.",
+      en: "SDP vectors uᵢ on the sphere + random direction g ∼ 𝒩(0,I). Rounding by scores ⟨uᵢ,g⟩ is the analogue of projecting forces onto a random axis — direct link with the α_k factor of kernel clustering."
+    },
+    legendLeftTitle: { fr: "SDP", en: "SDP" },
+    legendRightTitle: { fr: "Garantie", en: "Guarantee" },
+    legendLeftItems: {
+      fr: [
+        { color: '#ef4444', text: "u₁" },
+        { color: '#3b82f6', text: "u₂" },
+        { color: '#22c55e', text: "u₃" }
+      ],
+      en: [
+        { color: '#ef4444', text: "u₁" },
+        { color: '#3b82f6', text: "u₂" },
+        { color: '#22c55e', text: "u₃" }
+      ]
+    },
+    legendRightItems: {
+      fr: [
+        { color: '#eab308', text: "Facteur α_k" },
+        { color: '#a855f7', text: "Scores ⟨uᵢ,g⟩" }
+      ],
+      en: [
+        { color: '#eab308', text: "Factor α_k" },
+        { color: '#a855f7', text: "Scores ⟨uᵢ,g⟩" }
+      ]
+    },
+    params: {
+      k: { fr: 'Nombre de clusters k', en: 'Number of clusters k' },
+      showSphere: { fr: 'Sphère unitaire', en: 'Unit sphere' }
+    }
+  }
+};
+
+/* État de la langue */
+let currentLang = 'fr';
+
+function t(key) {
+  return (I18N[currentLang] && I18N[currentLang][key]) || I18N.fr[key] || key;
+}
+
+function setLanguage(lang) {
+  currentLang = lang;
+  document.documentElement.lang = lang;
+  /* Mise à jour du bouton */
+  const flagFr = document.querySelector('#lang-toggle .flag-fr');
+  const flagUs = document.querySelector('#lang-toggle .flag-us');
+  const label = document.getElementById('lang-label');
+  if (lang === 'fr') {
+    flagFr.style.display = 'inline-block';
+    flagUs.style.display = 'inline-block';
+    label.textContent = t('lang-label');
+    document.getElementById('lang-toggle').title = t('flag-title');
+  } else {
+    flagFr.style.display = 'inline-block';
+    flagUs.style.display = 'inline-block';
+    label.textContent = t('lang-label');
+    document.getElementById('lang-toggle').title = t('flag-title');
+  }
+  /* Mise à jour des éléments data-i18n */
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    const txt = t(key);
+    if (txt) el.textContent = txt;
+  });
+  /* Boutons toolbar */
+  document.getElementById('btn-panel').textContent = t('btn-panel');
+  document.getElementById('btn-full').textContent = t('btn-full');
+  /* Step label */
+  updateTimelineUI();
+  /* Re-rendu de la scène */
+  renderSceneList();
+  renderParams();
+  renderLegends();
+  if (currentScene) {
+    document.getElementById('scene-title').textContent = getSceneTitle(currentScene);
+    document.getElementById('description').innerHTML = getSceneDesc(currentScene);
+    const cap = document.getElementById('scene-caption');
+    if (cap) {
+      const c = getSceneCaption(currentScene);
+      if (c) { cap.textContent = c; cap.style.display = 'block'; }
+      else { cap.textContent = ''; cap.style.display = 'none'; }
+    }
+    const eqEl = document.getElementById('scene-eq');
+    try {
+      if (window.katex) katex.render(currentScene.tex, eqEl, { throwOnError: false, displayMode: true });
+      else eqEl.textContent = currentScene.tex;
+    } catch (_) { eqEl.textContent = currentScene.tex; }
+  }
+}
+
+/* Helpers de traduction de scène */
+function getSceneTitle(scene) {
+  const tr = SCENE_TRANSLATIONS[scene.id];
+  if (tr && tr.title) return tr.title[currentLang] || tr.title.fr || scene.title;
+  return scene.title;
+}
+function getSceneDesc(scene) {
+  const tr = SCENE_TRANSLATIONS[scene.id];
+  if (tr && tr.desc) return tr.desc[currentLang] || tr.desc.fr || scene.desc;
+  return scene.desc;
+}
+function getSceneCaption(scene) {
+  const tr = SCENE_TRANSLATIONS[scene.id];
+  if (tr && tr.caption) return tr.caption[currentLang] || tr.caption.fr || scene.caption;
+  return scene.caption || '';
+}
+function getParamLabel(scene, p) {
+  const tr = SCENE_TRANSLATIONS[scene.id];
+  if (tr && tr.params && tr.params[p.key]) {
+    return tr.params[p.key][currentLang] || tr.params[p.key].fr || p.label;
+  }
+  return p.label;
+}
+function getLegendTitle(scene, side) {
+  const tr = SCENE_TRANSLATIONS[scene.id];
+  if (tr) {
+    if (side === 'left' && tr.legendLeftTitle) return tr.legendLeftTitle[currentLang] || tr.legendLeftTitle.fr;
+    if (side === 'right' && tr.legendRightTitle) return tr.legendRightTitle[currentLang] || tr.legendRightTitle.fr;
+  }
+  return side === 'left' ? scene.legendLeft.title : scene.legendRight.title;
+}
+function getLegendItems(scene, side) {
+  const tr = SCENE_TRANSLATIONS[scene.id];
+  if (tr) {
+    if (side === 'left' && tr.legendLeftItems) return tr.legendLeftItems[currentLang] || tr.legendLeftItems.fr;
+    if (side === 'right' && tr.legendRightItems) return tr.legendRightItems[currentLang] || tr.legendRightItems.fr;
+  }
+  return side === 'left' ? scene.legendLeft.items : scene.legendRight.items;
+}
+
+/* =====================================================================
+   1. PARTICULES
+   ===================================================================== */
+const particlesCanvas = document.getElementById('particles-canvas');
+const pctx = particlesCanvas.getContext('2d');
+let particles = [];
+let particlesActive = true;
+
+function resizeParticles() {
+  const dpr = window.devicePixelRatio || 1;
+  particlesCanvas.width = window.innerWidth * dpr;
+  particlesCanvas.height = window.innerHeight * dpr;
+  particlesCanvas.style.width = window.innerWidth + 'px';
+  particlesCanvas.style.height = window.innerHeight + 'px';
+  pctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  particles = [];
+  const n = Math.round((window.innerWidth * window.innerHeight) / 24000);
+  for (let i = 0; i < n; i++) {
+    particles.push({
+      x: Math.random() * window.innerWidth,
+      y: Math.random() * window.innerHeight,
+      vx: (Math.random() - 0.5) * 0.18,
+      vy: (Math.random() - 0.5) * 0.18 - 0.02,
+      r: Math.random() * 1.6 + 0.5,
+      alpha: Math.random() * 0.3 + 0.05,
+      hue: Math.random() < 0.8 ? '168,85,247' : '234,179,8'
+    });
+  }
+}
+
+function drawParticles() {
+  if (!particlesActive) { pctx.clearRect(0, 0, window.innerWidth, window.innerHeight); return; }
+  const W = window.innerWidth, H = window.innerHeight;
+  pctx.clearRect(0, 0, W, H);
+  for (const p of particles) {
+    p.x += p.vx; p.y += p.vy;
+    if (p.x < -10) p.x = W + 10;
+    if (p.x > W + 10) p.x = -10;
+    if (p.y < -10) p.y = H + 10;
+    if (p.y > H + 10) p.y = -10;
+    pctx.beginPath();
+    pctx.arc(p.x, p.y, p.r, 0, 2 * Math.PI);
+    pctx.fillStyle = `rgba(${p.hue},${p.alpha})`;
+    pctx.fill();
+  }
+}
+
+/* =====================================================================
+   2. MOTEUR 3D
+   ===================================================================== */
+const canvas = document.getElementById('view');
+const ctx = canvas.getContext('2d');
+
+const view = {
+  W: 0, H: 0, dpr: 1,
+  yaw: 0.6, pitch: 0.35, zoom: 1,
+  vyaw: 0, vpitch: 0,
+  autoRotate: true,
+  labels: true,
+  grid: false,
+  paused: false,
+  speed: 0.55,
+  time: 0,
+  bgOpacity: 1.0
+};
+
+function resizeCanvas() {
+  const wrap = document.getElementById('canvas-wrap');
+  const dpr = window.devicePixelRatio || 1;
+  const style = getComputedStyle(wrap);
+  const padBottom = parseFloat(style.paddingBottom) || 0;
+  const padTop = parseFloat(style.paddingTop) || 0;
+  const w = wrap.clientWidth;
+  const h = Math.max(120, wrap.clientHeight - padBottom);
+  view.W = w; view.H = h; view.dpr = dpr;
+  canvas.width = Math.max(2, Math.round(w * dpr));
+  canvas.height = Math.max(2, Math.round(h * dpr));
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function project(p, opt) {
+  opt = opt || {};
+  const W = view.W, H = view.H;
+  const yaw = opt.yaw !== undefined ? opt.yaw : view.yaw;
+  const pitch = opt.pitch !== undefined ? opt.pitch : view.pitch;
+  const scale = (opt.scale || 1) * Math.min(W, H) * 0.28 * view.zoom;
+  const cy = Math.cos(yaw), sy = Math.sin(yaw);
+  const cp = Math.cos(pitch), sp = Math.sin(pitch);
+  let x1 = p.x * cy - p.z * sy;
+  let z1 = p.x * sy + p.z * cy;
+  let y1 = p.y;
+  let y2 = y1 * cp - z1 * sp;
+  let z2 = y1 * sp + z1 * cp;
+  const d = 7.5;
+  const f = d / (d + z2);
+  return { x: W / 2 + x1 * scale * f, y: H / 2 - y2 * scale * f, depth: z2, f };
+}
+
+function topY(offset) {
+  return Math.max(28, Math.round(view.H * 0.02) + (offset || 0));
+}
+function bottomY(offset) {
+  return view.H - Math.max(36, Math.round(view.H * 0.045) + (offset || 0));
+}
+
+function clearCanvas() {
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, view.W, view.H);
+  if (view.bgOpacity > 0) {
+    ctx.fillStyle = `rgba(0, 0, 0, ${view.bgOpacity * 0.45})`;
+    ctx.fillRect(0, 0, view.W, view.H);
+  }
+  ctx.restore();
+  if (view.grid) drawGrid();
+}
+
+function drawGrid() {
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  const step = 0.5;
+  for (let i = -2; i <= 2; i += step) {
+    const p1 = project({ x: i, y: -1.2, z: -2 });
+    const p2 = project({ x: i, y: -1.2, z: 2 });
+    ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+    const p3 = project({ x: -2, y: -1.2, z: i });
+    const p4 = project({ x: 2, y: -1.2, z: i });
+    ctx.beginPath(); ctx.moveTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y); ctx.stroke();
+  }
+}
+
+function drawLine(a, b, color, width, dash) {
+  ctx.beginPath();
+  ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+  ctx.strokeStyle = color || '#fff';
+  ctx.lineWidth = width || 2.5;
+  if (dash) ctx.setLineDash(dash); else ctx.setLineDash([]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawArrow(a, b, color, width) {
+  drawLine(a, b, color, width || 3);
+  const ang = Math.atan2(b.y - a.y, b.x - a.x);
+  const L = 13;
+  ctx.beginPath();
+  ctx.moveTo(b.x, b.y);
+  ctx.lineTo(b.x - L * Math.cos(ang - 0.4), b.y - L * Math.sin(ang - 0.4));
+  ctx.lineTo(b.x - L * Math.cos(ang + 0.4), b.y - L * Math.sin(ang + 0.4));
+  ctx.closePath();
+  ctx.fillStyle = color || '#fff';
+  ctx.fill();
+}
+
+function label(text, p, color, size, italic) {
+  if (!view.labels) return;
+  const s = Math.max(14, size || 18);
+  ctx.save();
+  ctx.font = (italic ? 'italic ' : '') + s + 'px "Times New Roman", serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(0,0,0,1)';
+  ctx.shadowBlur = 8;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, p.x, p.y);
+  ctx.restore();
+}
+
+function drawPoly(pts, fill, alpha, stroke, lineWidth) {
+  if (!pts || pts.length < 2) return;
+  ctx.beginPath();
+  pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+  ctx.closePath();
+  if (fill) {
+    ctx.globalAlpha = alpha == null ? 1 : alpha;
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  if (stroke) {
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = lineWidth || 2;
+    ctx.stroke();
+  }
+}
+
+function drawSphere(p, r, color, alpha) {
+  const pp = project(p);
+  const scale = Math.min(view.W, view.H) * 0.28 * view.zoom;
+  ctx.beginPath();
+  ctx.arc(pp.x, pp.y, Math.max(2, r * scale * (pp.f || 1)), 0, 2 * Math.PI);
+  ctx.fillStyle = color;
+  ctx.globalAlpha = alpha == null ? 1 : alpha;
+  ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+/* =====================================================================
+   3. SCÈNES
+   ===================================================================== */
+
+function drawThreeForces(params) {
+  clearCanvas();
+  const t = view.time;
+  const m = Math.max(3, Math.round(params.m || 3));
+  const R = params.radius || 1.15;
+  const elev = (params.elev || 0) * 0.4;
+  const colors = ['#ef4444', '#3b82f6', '#22c55e', '#a855f7', '#eab308', '#06b6d4'];
+  const o = project({ x: 0, y: 0, z: 0 });
+
+  const ring = [];
+  for (let i = 0; i <= 72; i++) {
+    const a = 2 * Math.PI * i / 72;
+    ring.push(project({ x: R * Math.cos(a), y: elev * 0.2, z: R * Math.sin(a) }));
+  }
+  drawPoly(ring, null, 0, 'rgba(255,255,255,0.14)', 1.5);
+
+  const step = 2 * Math.PI / m;
+  for (let s = 0; s < m; s++) {
+    const a0 = s * step - Math.PI / 2;
+    const a1 = a0 + step;
+    const pts = [o];
+    for (let k = 0; k <= 36; k++) {
+      const a = a0 + (a1 - a0) * (k / 36);
+      pts.push(project({ x: R * Math.cos(a), y: 0, z: R * Math.sin(a) }));
+    }
+    drawPoly(pts, colors[s % colors.length], 0.13, 'rgba(255,255,255,0.08)', 1);
+  }
+
+  const vectors = [];
+  const len0 = 0.82;
+  for (let s = 0; s < m; s++) {
+    const am = s * step - Math.PI / 2 + step / 2;
+    const v = { x: len0 * Math.cos(am), y: 0, z: len0 * Math.sin(am) };
+    vectors.push(v);
+    const e = project(v);
+    drawArrow(o, e, colors[s % colors.length], 3.2);
+    const forceNames = ['P', 'Q', 'S', 'T', 'U', 'V'];
+    label(forceNames[s] || ('F' + (s + 1)), { x: e.x + 16, y: e.y - 16 }, colors[s % colors.length], 20, true);
+  }
+
+  if (params.showPolygon !== false) {
+    let acc = { x: 0, y: 0, z: 0 };
+    const pts = [project(acc)];
+    for (const v of vectors) {
+      acc = { x: acc.x + v.x, y: acc.y + v.y, z: acc.z + v.z };
+      pts.push(project(acc));
+    }
+    pts.push(project({ x: 0, y: 0, z: 0 }));
+    for (let i = 0; i < pts.length - 1; i++) {
+      drawLine(pts[i], pts[i + 1], 'rgba(234,179,8,0.75)', 2, [5, 4]);
+    }
+  }
+
+  if (params.showEq !== false) {
+    label(currentLang === 'fr' ? 'P + Q + S = 0  (équilibre)' : 'P + Q + S = 0  (equilibrium)', { x: view.W / 2, y: bottomY(8) }, '#eab308', 20, true);
+  }
+}
+
+function drawParallelogram(params) {
+  clearCanvas();
+  const t = view.time;
+  const aP = params.aP ?? 0.95;
+  const aQ = params.aQ ?? 0.75;
+  let angle = (params.angle ?? 0.7) + (params.animateAngle ? Math.sin(t * 0.35) * 0.08 : 0);
+  angle = Math.max(0.18, Math.min(1.35, angle));
+  const lift = params.lift ?? 0;
+
+  const o = { x: 0, y: lift, z: 0 };
+  const P = { x: aP * Math.cos(angle), y: lift, z: aP * Math.sin(angle) };
+  const Q = { x: aQ * Math.cos(-angle), y: lift, z: aQ * Math.sin(-angle) };
+  const Rv = { x: P.x + Q.x, y: lift, z: P.z + Q.z };
+
+  const oP = project(o);
+  const pP = project(P);
+  const pQ = project(Q);
+  const pR = project(Rv);
+
+  drawPoly([oP, pP, pR, pQ], 'rgba(168,85,247,0.16)', 0.55, 'rgba(168,85,247,0.65)', 2);
+  drawLine(pP, pR, 'rgba(234,179,8,0.55)', 2, [6, 5]);
+  drawLine(pQ, pR, 'rgba(234,179,8,0.55)', 2, [6, 5]);
+
+  drawArrow(oP, pP, '#ef4444', 3.4);
+  drawArrow(oP, pQ, '#3b82f6', 3.4);
+  drawArrow(oP, pR, '#22c55e', 4);
+
+  label('P', { x: pP.x + 14, y: pP.y - 12 }, '#ef4444', 22, true);
+  label('Q', { x: pQ.x + 14, y: pQ.y - 12 }, '#3b82f6', 22, true);
+  label('R = P+Q', { x: pR.x + 28, y: pR.y - 12 }, '#22c55e', 22, true);
+  label('O', { x: oP.x - 14, y: oP.y + 14 }, '#fff', 20, true);
+}
+
+function drawParallelepiped(params) {
+  clearCanvas();
+  const aP = params.aP ?? 1.0;
+  const aQ = params.aQ ?? 0.85;
+  const aS = params.aS ?? 0.7;
+  const showFaces = params.showFaces !== false;
+
+  const P = { x: aP, y: 0, z: 0 };
+  const Q = { x: 0, y: aQ, z: 0 };
+  const S = { x: 0, y: 0, z: aS };
+  const Rv = { x: aP, y: aQ, z: aS };
+
+  const verts = [
+    { x: 0, y: 0, z: 0 },
+    P, Q, S,
+    { x: aP, y: aQ, z: 0 },
+    { x: aP, y: 0, z: aS },
+    { x: 0, y: aQ, z: aS },
+    Rv
+  ];
+  const proj = verts.map(v => project(v));
+
+  if (showFaces) {
+    const faces = [
+      [0,1,4,2], [0,1,5,3], [0,2,6,3],
+      [7,4,1,5], [7,4,2,6], [7,5,3,6]
+    ];
+    const faceColors = [
+      'rgba(239,68,68,0.08)', 'rgba(59,130,246,0.08)', 'rgba(234,179,8,0.08)',
+      'rgba(168,85,247,0.07)', 'rgba(34,197,94,0.07)', 'rgba(6,182,212,0.07)'
+    ];
+    const facesWithDepth = faces.map((f, i) => ({
+      f, i,
+      depth: f.reduce((s, j) => s + proj[j].depth, 0) / f.length
+    })).sort((a, b) => b.depth - a.depth);
+    facesWithDepth.forEach(({ f, i }) => {
+      drawPoly(f.map(j => proj[j]), faceColors[i], 0.5, 'rgba(255,255,255,0.06)', 1);
+    });
+  }
+
+  const edges = [
+    [0,1],[0,2],[0,3],[1,4],[1,5],[2,4],[2,6],[3,5],[3,6],[4,7],[5,7],[6,7]
+  ];
+  edges.forEach(([a, b]) => {
+    drawLine(proj[a], proj[b], 'rgba(140,140,170,0.5)', 1.7);
+  });
+
+  drawArrow(proj[0], proj[1], '#ef4444', 3.3);
+  drawArrow(proj[0], proj[2], '#3b82f6', 3.3);
+  drawArrow(proj[0], proj[3], '#eab308', 3.3);
+  drawArrow(proj[0], proj[7], '#22c55e', 4);
+
+  label('P', { x: proj[1].x + 14, y: proj[1].y - 12 }, '#ef4444', 22, true);
+  label('Q', { x: proj[2].x + 14, y: proj[2].y - 12 }, '#3b82f6', 22, true);
+  label('S', { x: proj[3].x + 14, y: proj[3].y - 12 }, '#eab308', 22, true);
+  label('R', { x: proj[7].x + 18, y: proj[7].y - 12 }, '#22c55e', 22, true);
+  label('O', { x: proj[0].x - 14, y: proj[0].y + 14 }, '#fff', 20, true);
+}
+
+function drawDipole(params) {
+  clearCanvas();
+  const d = params.d ?? 1.15;
+  const nLines = Math.round(params.nLines ?? 14);
+  const showField = params.showField !== false;
+
+  const src = { x: -d / 2, y: 0, z: 0 };
+  const snk = { x:  d / 2, y: 0, z: 0 };
+
+  for (let k = 0; k < nLines; k++) {
+    const a0 = (k / nLines) * Math.PI * 2;
+    let x = src.x + Math.cos(a0) * 0.07;
+    let z = src.z + Math.sin(a0) * 0.07;
+    let y = 0;
+    const pts = [];
+    for (let s = 0; s < 180; s++) {
+      const dx1 = x - src.x, dy1 = y - src.y, dz1 = z - src.z;
+      const r1 = Math.hypot(dx1, dy1, dz1) + 1e-6;
+      const dx2 = x - snk.x, dy2 = y - snk.y, dz2 = z - snk.z;
+      const r2 = Math.hypot(dx2, dy2, dz2) + 1e-6;
+      const ex = dx1 / (r1 * r1 * r1) - dx2 / (r2 * r2 * r2);
+      const ey = dy1 / (r1 * r1 * r1) - dy2 / (r2 * r2 * r2);
+      const ez = dz1 / (r1 * r1 * r1) - dz2 / (r2 * r2 * r2);
+      const em = Math.hypot(ex, ey, ez);
+      if (em < 1e-6) break;
+      x += (ex / em) * 0.028;
+      y += (ey / em) * 0.028;
+      z += (ez / em) * 0.028;
+      pts.push({ x, y, z });
+      if ((x - snk.x) ** 2 + (y - snk.y) ** 2 + (z - snk.z) ** 2 < 0.018) break;
+      if (Math.abs(x) > 2.5 || Math.abs(z) > 2.5) break;
+    }
+    if (pts.length < 3) continue;
+    const proj = pts.map(p => project(p));
+    ctx.beginPath();
+    proj.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+    ctx.strokeStyle = 'rgba(120,180,255,0.32)';
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+  }
+
+  if (showField) {
+    const n = 16, range = 1.6, step = range * 2 / n;
+    for (let i = 0; i <= n; i++) {
+      for (let j = 0; j <= n; j++) {
+        const x = -range + i * step;
+        const z = -range + j * step;
+        if ((x - src.x) ** 2 + z ** 2 < 0.04 || (x - snk.x) ** 2 + z ** 2 < 0.04) continue;
+        const dx1 = x - src.x, dz1 = z - src.z;
+        const r1 = Math.hypot(dx1, dz1) + 1e-6;
+        const dx2 = x - snk.x, dz2 = z - snk.z;
+        const r2 = Math.hypot(dx2, dz2) + 1e-6;
+        let ex = dx1 / (r1 * r1 * r1) - dx2 / (r2 * r2 * r2);
+        let ez = dz1 / (r1 * r1 * r1) - dz2 / (r2 * r2 * r2);
+        const em = Math.hypot(ex, ez);
+        if (em < 1e-5) continue;
+        const L = 0.055;
+        const a = project({ x, y: 0, z });
+        const b = project({ x: x + (ex / em) * L, y: 0, z: z + (ez / em) * L });
+        drawLine(a, b, 'rgba(255,204,85,0.35)', 1);
+      }
+    }
+  }
+
+  drawSphere(src, 0.08, '#ef4444', 1);
+  drawSphere(snk, 0.08, '#3b82f6', 1);
+  const pS = project(src), pK = project(snk);
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.2;
+  ctx.beginPath();
+  ctx.moveTo(pS.x - 9, pS.y); ctx.lineTo(pS.x + 9, pS.y);
+  ctx.moveTo(pS.x, pS.y - 9); ctx.lineTo(pS.x, pS.y + 9);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(pK.x - 9, pK.y); ctx.lineTo(pK.x + 9, pK.y);
+  ctx.stroke();
+  label(currentLang === 'fr' ? '+ source' : '+ source', { x: pS.x - 36, y: pS.y - 26 }, '#ef4444', 19, true);
+  label(currentLang === 'fr' ? '− puits' : '− sink', { x: pK.x + 36, y: pK.y - 26 }, '#3b82f6', 19, true);
+  label('dipôle', project({ x: 0, y: 0.65, z: 0 }), '#a855f7', 22, true);
+}
+
+function drawHexapole(params) {
+  clearCanvas();
+  const R = params.R ?? 0.95;
+  const showField = params.showField !== false;
+  const charges = [];
+  for (let i = 0; i < 3; i++) {
+    const a = 2 * Math.PI * i / 3;
+    charges.push({ x: R * Math.cos(a), y: 0, z: R * Math.sin(a), sign: +1 });
+    charges.push({ x: -R * Math.cos(a), y: 0, z: -R * Math.sin(a), sign: -1 });
+  }
+
+  if (showField) {
+    const n = 20, range = 1.7, step = range * 2 / n;
+    for (let i = 0; i <= n; i++) {
+      for (let j = 0; j <= n; j++) {
+        const x = -range + i * step;
+        const z = -range + j * step;
+        let tooClose = false;
+        for (const c of charges) {
+          if ((x - c.x) ** 2 + (z - c.z) ** 2 < 0.035) { tooClose = true; break; }
+        }
+        if (tooClose) continue;
+        let ex = 0, ez = 0;
+        for (const c of charges) {
+          const dx = x - c.x, dz = z - c.z;
+          const r2 = dx * dx + dz * dz;
+          if (r2 < 1e-4) continue;
+          const r = Math.sqrt(r2);
+          ex += c.sign * dx / (r2 * r);
+          ez += c.sign * dz / (r2 * r);
+        }
+        const em = Math.hypot(ex, ez);
+        if (em < 1e-5) continue;
+        const L = 0.05;
+        const a = project({ x, y: 0, z });
+        const b = project({ x: x + (ex / em) * L, y: 0, z: z + (ez / em) * L });
+        drawLine(a, b, 'rgba(255,204,85,0.42)', 1.1);
+      }
+    }
+  }
+
+  charges.forEach(c => {
+    drawSphere(c, 0.065, c.sign > 0 ? '#ef4444' : '#3b82f6', 1);
+    const p = project(c);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(p.x - 6, p.y); ctx.lineTo(p.x + 6, p.y);
+    if (c.sign > 0) { ctx.moveTo(p.x, p.y - 6); ctx.lineTo(p.x, p.y + 6); }
+    ctx.stroke();
+  });
+
+  label(currentLang === 'fr' ? 'hexapôle : 3 sources + / 3 puits −' : 'hexapole: 3 sources + / 3 sinks −', { x: view.W / 2, y: bottomY(20) }, '#a855f7', 22, true);
+  label(currentLang === 'fr' ? 'symétrie C₃' : 'C₃ symmetry', { x: view.W / 2, y: bottomY(50) }, '#eab308', 18, true);
+}
+
+function drawStreamCone(params) {
+  clearCanvas();
+  const t = view.time;
+  const m = Math.max(3, Math.round(params.m ?? 3));
+  const R = params.radius ?? 1.25;
+  const colors = ['#ef4444', '#3b82f6', '#22c55e', '#a855f7', '#eab308', '#06b6d4'];
+  const step = 2 * Math.PI / m;
+  const o = project({ x: 0, y: 0, z: 0 });
+
+  for (let s = 0; s < m; s++) {
+    const a0 = s * step - Math.PI / 2;
+    const a1 = a0 + step;
+    const pts = [o];
+    for (let k = 0; k <= 36; k++) {
+      const a = a0 + (a1 - a0) * (k / 36);
+      pts.push(project({ x: R * Math.cos(a), y: 0.08 * Math.sin(a * 3 + t * 0.3), z: R * Math.sin(a) }));
+    }
+    drawPoly(pts, colors[s % colors.length], 0.22, colors[s % colors.length], 1.8);
+  }
+
+  const nLines = Math.round(params.nLines ?? 24);
+  const spiral = params.spiral ?? 0.55;
+  for (let k = 0; k < nLines; k++) {
+    const a0 = (k / nLines) * Math.PI * 2 - Math.PI / 2 + t * 0.08;
+    const pts = [];
+    for (let s = 0; s <= 36; s++) {
+      const u = s / 36;
+      const r = R * 0.95 * (1 - u);
+      const a = a0 + u * spiral;
+      pts.push(project({ x: r * Math.cos(a), y: 0, z: r * Math.sin(a) }));
+    }
+    ctx.beginPath();
+    pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+    ctx.strokeStyle = 'rgba(120,180,255,0.55)';
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+  }
+
+  ctx.beginPath();
+  ctx.arc(o.x, o.y, 5, 0, 2 * Math.PI);
+  ctx.fillStyle = '#eab308';
+  ctx.fill();
+
+  label(currentLang === 'fr' ? 'frontières des cônes Kᵢ' : 'cone boundaries Kᵢ', { x: view.W / 2, y: bottomY(0) }, '#a855f7', 18, true);
+}
+
+function drawCellComplement(params) {
+  clearCanvas();
+  const t = view.time;
+  const angle = (params.angle ?? Math.PI / 6) + (params.animate ? Math.sin(t * 0.3) * 0.04 : 0);
+  const R = params.radius ?? 1.35;
+
+  const ring = [];
+  for (let i = 0; i <= 72; i++) {
+    const a = 2 * Math.PI * i / 72;
+    ring.push(project({ x: R * Math.cos(a), y: 0, z: R * Math.sin(a) }));
+  }
+  drawPoly(ring, null, 0, 'rgba(255,255,255,0.16)', 1.5);
+
+  const ptsA = [{ x: 0, y: 0, z: 0 }];
+  for (let k = 0; k <= 40; k++) {
+    const a = -angle + (2 * angle) * (k / 40);
+    ptsA.push({ x: R * Math.cos(a), y: 0, z: R * Math.sin(a) });
+  }
+  drawPoly(ptsA.map(p => project(p)), '#ef4444', 0.22, '#ef4444', 2);
+
+  const ptsB = [{ x: 0, y: 0, z: 0 }];
+  for (let k = 0; k <= 40; k++) {
+    const a = angle + (2 * Math.PI - 2 * angle) * (k / 40);
+    ptsB.push({ x: R * Math.cos(a), y: 0, z: R * Math.sin(a) });
+  }
+  drawPoly(ptsB.map(p => project(p)), '#3b82f6', 0.14, '#3b82f6', 2);
+
+  const gA = { x: R * 0.55 * Math.cos(0), y: 0, z: R * 0.55 * Math.sin(0) };
+  const gB = { x: R * 0.4 * Math.cos(Math.PI), y: 0, z: R * 0.4 * Math.sin(Math.PI) };
+  const o = project({ x: 0, y: 0, z: 0 });
+  drawArrow(o, project(gA), '#ef4444', 3);
+  drawArrow(o, project(gB), '#3b82f6', 3);
+  label('z(A)', project({ x: gA.x + 0.12, y: 0, z: gA.z }), '#ef4444', 20, true);
+  label('z(Aᶜ)', project({ x: gB.x - 0.12, y: 0, z: gB.z }), '#3b82f6', 20, true);
+
+  label('A ∪ Aᶜ = ℝ²', { x: view.W / 2, y: bottomY(4) }, '#a855f7', 22, true);
+  label('z(A) + z(Aᶜ) = 0', { x: view.W / 2, y: bottomY(30) }, '#eab308', 18, true);
+}
+
+/* ---------- NOUVELLES SCÈNES 3D ---------- */
+
+function drawHelixForces(params) {
+  clearCanvas();
+  const t = view.time;
+  const m = Math.max(3, Math.round(params.m || 3));
+  const R = params.radius || 1.1;
+  const H = params.height || 0.9;
+  const colors = ['#ef4444', '#3b82f6', '#22c55e', '#a855f7', '#eab308'];
+  const step = 2 * Math.PI / m;
+  const o = project({ x: 0, y: 0, z: 0 });
+
+  if (params.showAxis !== false) {
+    drawLine(project({ x: 0, y: -0.2, z: 0 }), project({ x: 0, y: H + 0.15, z: 0 }), 'rgba(255,255,255,0.35)', 2, [5, 4]);
+    label('ℝ^{d−2}', project({ x: 0.15, y: H + 0.05, z: 0 }), '#eab308', 17, true);
+  }
+
+  for (let s = 0; s < m; s++) {
+    const a0 = s * step - Math.PI / 2;
+    const a1 = a0 + step;
+    const bot = [o];
+    for (let k = 0; k <= 28; k++) {
+      const a = a0 + (a1 - a0) * (k / 28);
+      bot.push(project({ x: R * Math.cos(a), y: 0, z: R * Math.sin(a) }));
+    }
+    drawPoly(bot, colors[s % colors.length], 0.12, colors[s % colors.length], 1.2);
+    const top = [project({ x: 0, y: H, z: 0 })];
+    for (let k = 0; k <= 28; k++) {
+      const a = a0 + (a1 - a0) * (k / 28);
+      top.push(project({ x: R * Math.cos(a), y: H, z: R * Math.sin(a) }));
+    }
+    drawPoly(top, colors[s % colors.length], 0.1, colors[s % colors.length], 1.2);
+    for (const a of [a0, a1]) {
+      drawLine(
+        project({ x: R * Math.cos(a), y: 0, z: R * Math.sin(a) }),
+        project({ x: R * Math.cos(a), y: H, z: R * Math.sin(a) }),
+        'rgba(255,255,255,0.2)', 1.2
+      );
+    }
+  }
+
+  for (let s = 0; s < m; s++) {
+    const am = s * step - Math.PI / 2 + step / 2;
+    const v = { x: 0.7 * Math.cos(am), y: H * 0.35, z: 0.7 * Math.sin(am) };
+    const e = project(v);
+    drawArrow(o, e, colors[s % colors.length], 3.2);
+    if (params.showLabels !== false) {
+      label(['P', 'Q', 'S', 'T', 'U'][s] || ('F' + (s + 1)), { x: e.x + 14, y: e.y - 12 }, colors[s % colors.length], 20, true);
+    }
+  }
+
+  label(currentLang === 'fr' ? 'hélice + forces Lagrange' : 'helix + Lagrange forces', { x: view.W / 2, y: bottomY(4) }, '#fff', 20, true);
+}
+
+function drawForceBalance3D(params) {
+  clearCanvas();
+  const scale = params.scale || 1.0;
+  const showPlane = params.showPlane !== false;
+
+  const P = { x: 0.9 * scale, y: 0.15 * scale, z: 0.2 * scale };
+  const Q = { x: -0.55 * scale, y: 0.7 * scale, z: -0.25 * scale };
+  const S = { x: -P.x - Q.x, y: -P.y - Q.y, z: -P.z - Q.z };
+
+  const o = project({ x: 0, y: 0, z: 0 });
+  const pP = project(P);
+  const pQ = project(Q);
+  const pS = project(S);
+
+  if (showPlane) {
+    const planePts = [
+      project({ x: 0, y: 0, z: 0 }),
+      project({ x: P.x * 1.3, y: P.y * 1.3, z: P.z * 1.3 }),
+      project({ x: (P.x + Q.x) * 1.1, y: (P.y + Q.y) * 1.1, z: (P.z + Q.z) * 1.1 })
+    ];
+    drawPoly(planePts, 'rgba(168,85,247,0.08)', 0.4, 'rgba(168,85,247,0.25)', 1);
+  }
+
+  drawArrow(o, pP, '#ef4444', 3.4);
+  drawArrow(o, pQ, '#3b82f6', 3.4);
+  drawArrow(o, pS, '#22c55e', 3.4);
+
+  let acc = { x: 0, y: 0, z: 0 };
+  const chain = [project(acc)];
+  [P, Q, S].forEach(v => {
+    acc = { x: acc.x + v.x, y: acc.y + v.y, z: acc.z + v.z };
+    chain.push(project(acc));
+  });
+  chain.push(project({ x: 0, y: 0, z: 0 }));
+  for (let i = 0; i < chain.length - 1; i++) {
+    drawLine(chain[i], chain[i + 1], 'rgba(234,179,8,0.8)', 2.2, [5, 4]);
+  }
+
+  label('P', { x: pP.x + 14, y: pP.y - 12 }, '#ef4444', 20, true);
+  label('Q', { x: pQ.x + 14, y: pQ.y - 12 }, '#3b82f6', 20, true);
+  label('S', { x: pS.x + 14, y: pS.y - 12 }, '#22c55e', 20, true);
+  label('P + Q + S = 0', { x: view.W / 2, y: bottomY(8) }, '#eab308', 20, true);
+}
+
+function drawParallelForces(params) {
+  clearCanvas();
+  const P = params.P ?? 20;
+  const Q = params.Q ?? 15;
+  const Rsum = P + Q;
+  const Ax = -1.0, Bx = 1.0;
+  const Cx = Ax + (Bx - Ax) * (Q / (P + Q));
+  const yTop = 0.55;
+  const scaleY = Math.min(0.035, 1.15 / Math.max(P, Q, Rsum, 1));
+  const oA = project({ x: Ax, y: yTop, z: 0 });
+  const oB = project({ x: Bx, y: yTop, z: 0 });
+  const oC = project({ x: Cx, y: yTop, z: 0 });
+  drawLine(oA, oB, 'rgba(255,255,255,0.35)', 2);
+  drawArrow(oA, project({ x: Ax, y: yTop - P * scaleY, z: 0 }), '#ef4444', 3.2);
+  drawArrow(oB, project({ x: Bx, y: yTop - Q * scaleY, z: 0 }), '#3b82f6', 3.2);
+  drawArrow(oC, project({ x: Cx, y: yTop - Rsum * scaleY, z: 0 }), '#22c55e', 3.6);
+  label('A', { x: oA.x - 14, y: oA.y - 14 }, '#fff', 18, true);
+  label('B', { x: oB.x + 14, y: oB.y - 14 }, '#fff', 18, true);
+  label('C', { x: oC.x, y: oC.y - 18 }, '#22c55e', 18, true);
+  label('P=' + P, project({ x: Ax, y: yTop - P * scaleY * 0.5, z: 0 }), '#ef4444', 18, true);
+  label('Q=' + Q, project({ x: Bx, y: yTop - Q * scaleY * 0.5, z: 0 }), '#3b82f6', 18, true);
+  label('R=' + Rsum, project({ x: Cx + 0.15, y: yTop - Rsum * scaleY * 0.5, z: 0 }), '#22c55e', 18, true);
+  label('AC/CB = Q/P  (§27)', { x: view.W / 2, y: bottomY(8) }, '#eab308', 18, true);
+}
+
+function drawCoulombGauss(params) {
+  clearCanvas();
+  const t = view.time;
+  const sign = (params.sign ?? 1) >= 0 ? 1 : -1;
+  const showSpheres = params.showSpheres !== false;
+  const nRays = Math.round(params.nRays ?? 36);
+  const col = sign > 0 ? '#ef4444' : '#3b82f6';
+  const o = project({ x: 0, y: 0, z: 0 });
+
+  for (let i = 0; i < nRays; i++) {
+    const phi = Math.acos(1 - 2 * (i + 0.5) / nRays);
+    const theta = Math.PI * (3 - Math.sqrt(5)) * i + t * 0.03;
+    let dx = Math.sin(phi) * Math.cos(theta);
+    let dy = Math.cos(phi);
+    let dz = Math.sin(phi) * Math.sin(theta);
+    const n = Math.hypot(dx, dy, dz) || 1;
+    dx /= n; dy /= n; dz /= n;
+    const rMax = 1.35, segs = 10;
+    for (let k = 0; k < segs; k++) {
+      const r1 = (k / segs) * rMax, r2 = ((k + 1) / segs) * rMax;
+      const intensity = Math.min(1, 1 / (r1 * r1 + 0.12));
+      const a1 = project({ x: dx * r1, y: dy * r1, z: dz * r1 });
+      const a2 = project({ x: dx * r2, y: dy * r2, z: dz * r2 });
+      const rgba = sign > 0
+        ? `rgba(255,100,100,${0.12 + 0.55 * intensity})`
+        : `rgba(100,160,255,${0.12 + 0.55 * intensity})`;
+      if (k === segs - 1 || k % 3 === 2) {
+        if (sign > 0) drawArrow(a1, a2, rgba, 1.3 + intensity);
+        else drawArrow(a2, a1, rgba, 1.3 + intensity);
+      } else {
+        if (sign > 0) drawLine(a1, a2, rgba, 1 + intensity);
+        else drawLine(a2, a1, rgba, 1 + intensity);
+      }
+    }
+  }
+
+  if (showSpheres) {
+    [0.45, 0.85, 1.25].forEach((rr, idx) => {
+      const alpha = 0.22 + 0.12 * idx;
+      const colR = `rgba(100,220,255,${alpha})`;
+      const rings = [[], [], []];
+      for (let i = 0; i <= 48; i++) {
+        const a = 2 * Math.PI * i / 48;
+        const c = Math.cos(a), s = Math.sin(a);
+        rings[0].push(project({ x: rr * c, y: 0, z: rr * s }));
+        rings[1].push(project({ x: rr * c, y: rr * s, z: 0 }));
+        rings[2].push(project({ x: 0, y: rr * c, z: rr * s }));
+      }
+      rings.forEach((ring, ri) => {
+        drawPoly(ring, null, 0, colR, ri === 0 ? 1.6 : 1.15);
+      });
+      const angleLabel = Math.PI / 3 + idx * 0.35;
+      const pL = project({ x: rr * Math.cos(angleLabel), y: 0, z: rr * Math.sin(angleLabel) });
+      label('r' + (idx + 1), { x: pL.x + 10, y: pL.y - 8 }, 'rgba(100,220,255,0.95)', 14, true);
+    });
+  }
+  label(currentLang === 'fr' ? 'Φ = q/ε₀ (constant)' : 'Φ = q/ε₀ (constant)', { x: view.W / 2, y: bottomY(0) }, '#eab308', 17, true);
+
+  drawSphere({ x: 0, y: 0, z: 0 }, 0.09, col, 1);
+  label(sign > 0 ? '+q' : '−q', { x: o.x + 26, y: o.y - 26 }, col, 24, true);
+}
+
+function drawGaussianRounding(params) {
+  clearCanvas();
+  const t = view.time;
+  const k = Math.max(2, Math.round(params.k || 3));
+  const colors = ['#ef4444', '#3b82f6', '#22c55e', '#a855f7', '#eab308', '#06b6d4'];
+  const o = project({ x: 0, y: 0, z: 0 });
+  const R = 0.95;
+
+  if (params.showSphere !== false) {
+    const rings = [[], [], []];
+    for (let i = 0; i <= 48; i++) {
+      const a = 2 * Math.PI * i / 48;
+      const c = Math.cos(a), s = Math.sin(a);
+      rings[0].push(project({ x: R * c, y: 0, z: R * s }));
+      rings[1].push(project({ x: R * c, y: R * s, z: 0 }));
+      rings[2].push(project({ x: 0, y: R * c, z: R * s }));
+    }
+    rings.forEach((ring, ri) => {
+      drawPoly(ring, null, 0, `rgba(255,255,255,${0.14 - ri * 0.02})`, 1.15);
+    });
+  }
+
+  const vectors = [];
+  for (let i = 0; i < k; i++) {
+    const a = 2 * Math.PI * i / k - Math.PI / 2 + t * 0.06;
+    const elev = 0.28 * Math.sin(a * 1.5 + t * 0.35);
+    let v = { x: Math.cos(a), y: elev, z: Math.sin(a) };
+    const n = Math.hypot(v.x, v.y, v.z) || 1;
+    v = { x: (v.x / n) * R, y: (v.y / n) * R, z: (v.z / n) * R };
+    vectors.push(v);
+    const e = project(v);
+    drawArrow(o, e, colors[i % colors.length], 3);
+    label('u' + (i + 1), { x: e.x + 12, y: e.y - 12 }, colors[i % colors.length], 18, true);
+  }
+
+  const ga = t * 0.55;
+  let g = { x: Math.cos(ga), y: 0.3 * Math.sin(t * 0.7), z: Math.sin(ga) };
+  const gn = Math.hypot(g.x, g.y, g.z) || 1;
+  g = { x: g.x / gn, y: g.y / gn, z: g.z / gn };
+  const g1 = project({ x: 1.3 * g.x, y: 1.3 * g.y, z: 1.3 * g.z });
+  const g2 = project({ x: -1.3 * g.x, y: -1.3 * g.y, z: -1.3 * g.z });
+  drawLine(g1, g2, 'rgba(234,179,8,0.75)', 2.4, [6, 4]);
+  label('g', { x: g1.x + 12, y: g1.y - 8 }, '#eab308', 18, true);
+
+  let e1 = { x: -g.z, y: 0, z: g.x };
+  let e1n = Math.hypot(e1.x, e1.y, e1.z) || 1;
+  e1 = { x: e1.x / e1n, y: e1.y / e1n, z: e1.z / e1n };
+  const e2 = {
+    x: g.y * e1.z - g.z * e1.y,
+    y: g.z * e1.x - g.x * e1.z,
+    z: g.x * e1.y - g.y * e1.x
+  };
+  const plane = [];
+  for (let i = 0; i <= 40; i++) {
+    const a = 2 * Math.PI * i / 40;
+    plane.push(project({
+      x: R * 0.92 * (Math.cos(a) * e1.x + Math.sin(a) * e2.x),
+      y: R * 0.92 * (Math.cos(a) * e1.y + Math.sin(a) * e2.y),
+      z: R * 0.92 * (Math.cos(a) * e1.z + Math.sin(a) * e2.z)
+    }));
+  }
+  drawPoly(plane, 'rgba(234,179,8,0.08)', 0.45, 'rgba(234,179,8,0.4)', 1.3);
+
+  const scoreStr = [];
+  vectors.forEach((v, i) => {
+    const sc = (v.x * g.x + v.y * g.y + v.z * g.z) / R;
+    scoreStr.push('u' + (i + 1) + (sc >= 0 ? '+' : '−'));
+    const projLen = sc * R;
+    drawSphere({ x: g.x * projLen, y: g.y * projLen, z: g.z * projLen }, 0.04,
+      colors[i % colors.length], 0.85);
+  });
+
+  const ak = (8 * Math.PI / 9) * (1 - 1 / k);
+  label(`α_k ≈ ${ak.toFixed(3)}  ·  cut ${scoreStr.join(' ')}`, {
+    x: view.W / 2, y: bottomY(0)
+  }, '#f0f0f5', 17, true);
+}
+
+/* =====================================================================
+   4. STORY
+   ===================================================================== */
+
+function drawFieldFlux(params) {
+  clearCanvas();
+  const t = view.time;
+  const sign = (params.sign ?? 1) >= 0 ? 1 : -1;
+  const R = params.radius ?? 0.85;
+  const nRays = Math.round(params.nRays ?? 32);
+  const showSurface = params.showSurface !== false;
+  const col = sign > 0 ? '#ef4444' : '#3b82f6';
+  const o = project({ x: 0, y: 0, z: 0 });
+
+  if (showSurface) {
+    for (let ring = 0; ring < 5; ring++) {
+      const lat = -0.8 + ring * 0.4;
+      const rr = R * Math.sqrt(Math.max(0, 1 - lat * lat));
+      const pts = [];
+      for (let i = 0; i <= 48; i++) {
+        const a = 2 * Math.PI * i / 48 + t * 0.05;
+        pts.push(project({ x: rr * Math.cos(a), y: R * lat, z: rr * Math.sin(a) }));
+      }
+      drawPoly(pts, null, 0, 'rgba(100,220,255,0.35)', 1.2);
+    }
+    for (let m = 0; m < 6; m++) {
+      const a0 = m * Math.PI / 3;
+      const pts = [];
+      for (let i = 0; i <= 24; i++) {
+        const lat = -1 + 2 * (i / 24);
+        const rr = R * Math.sqrt(Math.max(0, 1 - lat * lat));
+        pts.push(project({ x: rr * Math.cos(a0), y: R * lat, z: rr * Math.sin(a0) }));
+      }
+      ctx.beginPath();
+      pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+      ctx.strokeStyle = 'rgba(100,220,255,0.25)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+  }
+
+  for (let i = 0; i < nRays; i++) {
+    const phi = Math.acos(1 - 2 * (i + 0.5) / nRays);
+    const theta = Math.PI * (3 - Math.sqrt(5)) * i + t * 0.04;
+    const dx = Math.sin(phi) * Math.cos(theta);
+    const dy = Math.cos(phi);
+    const dz = Math.sin(phi) * Math.sin(theta);
+    const pIn = project({ x: dx * R * 0.15, y: dy * R * 0.15, z: dz * R * 0.15 });
+    const pSurf = project({ x: dx * R, y: dy * R, z: dz * R });
+    const pOut = project({ x: dx * R * 1.25, y: dy * R * 1.25, z: dz * R * 1.25 });
+    const rgba = sign > 0 ? 'rgba(255,140,100,0.7)' : 'rgba(100,160,255,0.7)';
+    if (sign > 0) {
+      drawLine(pIn, pSurf, rgba, 1.2);
+      drawArrow(pSurf, pOut, rgba, 2.2);
+    } else {
+      drawLine(pOut, pSurf, rgba, 1.2);
+      drawArrow(pSurf, pIn, rgba, 2.2);
+    }
+  }
+
+  drawSphere({ x: 0, y: 0, z: 0 }, 0.12, col, 1);
+  label(sign > 0 ? '+q' : '−q', { x: o.x + 18, y: o.y - 22 }, col, 22, true);
+  label(currentLang === 'fr' ? '∯ E·dS = q/ε₀  (flux constant)' : '∯ E·dS = q/ε₀  (constant flux)', { x: view.W / 2, y: bottomY(0) }, '#eab308', 17, true);
+}
+
+function drawDelaunayPolyhedra(params) {
+  clearCanvas();
+  const n = Math.max(4, Math.min(14, Math.round(params.n ?? 9)));
+  const showVoronoi = params.showVoronoi !== false;
+  const showDelaunay = params.showDelaunay !== false;
+  const showCircum = params.showCircum !== false;
+  const showDual = params.showDual !== false;
+  const step = Math.round(params.algoStep ?? 0);
+  const t = view.time * 0.12;
+
+  const sites = [];
+  for (let i = 0; i < n; i++) {
+    const a = 2 * Math.PI * i / n + t;
+    const r = 0.35 + 0.5 * ((Math.sin(i * 2.3 + t) + 1) / 2);
+    sites.push({
+      x: r * Math.cos(a),
+      y: 0.06 * Math.sin(i + t * 2),
+      z: r * Math.sin(a),
+      col: CLUSTER_COLORS[i % CLUSTER_COLORS.length]
+    });
+  }
+
+  function circumcircle(a, b, c) {
+    const area = Math.abs(
+      (b.x - a.x) * (c.z - a.z) - (b.z - a.z) * (c.x - a.x)
+    );
+    if (area < 1e-4) return null;
+    const d = 2 * (a.x * (b.z - c.z) + b.x * (c.z - a.z) + c.x * (a.z - b.z));
+    if (Math.abs(d) < 1e-10) return null;
+    const a2 = a.x * a.x + a.z * a.z;
+    const b2 = b.x * b.x + b.z * b.z;
+    const c2 = c.x * c.x + c.z * c.z;
+    const ux = (a2 * (b.z - c.z) + b2 * (c.z - a.z) + c2 * (a.z - b.z)) / d;
+    const uz = (a2 * (c.x - b.x) + b2 * (a.x - c.x) + c2 * (b.x - a.x)) / d;
+    const r = Math.hypot(a.x - ux, a.z - uz);
+    return { x: ux, z: uz, r };
+  }
+
+  const triangles = [];
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      for (let k = j + 1; k < n; k++) {
+        const area = Math.abs(
+          (sites[j].x - sites[i].x) * (sites[k].z - sites[i].z) -
+          (sites[j].z - sites[i].z) * (sites[k].x - sites[i].x)
+        );
+        if (area < 1e-4) continue;
+        const cc = circumcircle(sites[i], sites[j], sites[k]);
+        if (!cc) continue;
+        let empty = true;
+        for (let m = 0; m < n; m++) {
+          if (m === i || m === j || m === k) continue;
+          if (Math.hypot(sites[m].x - cc.x, sites[m].z - cc.z) <= cc.r - 1e-6) {
+            empty = false; break;
+          }
+        }
+        if (empty) triangles.push({ i, j, k, cc });
+      }
+    }
+  }
+
+  const showT = showDelaunay && (step === 0 || step >= 2);
+  const showC = showCircum && (step === 0 || step >= 3);
+  const showV = showVoronoi && (step === 0 || step >= 4);
+  const showD = showDual && (step === 0 || step >= 4);
+
+  const edgeMap = new Map();
+  triangles.forEach((tr, ti) => {
+    [[tr.i, tr.j], [tr.j, tr.k], [tr.k, tr.i]].forEach(([a, b]) => {
+      const key = a < b ? a + ',' + b : b + ',' + a;
+      if (!edgeMap.has(key)) edgeMap.set(key, []);
+      edgeMap.get(key).push(ti);
+    });
+  });
+
+  if (showV) {
+    edgeMap.forEach((tris) => {
+      if (tris.length === 2) {
+        const c1 = triangles[tris[0]] && triangles[tris[0]].cc;
+        const c2 = triangles[tris[1]] && triangles[tris[1]].cc;
+        if (!c1 || !c2) return;
+        if (Math.abs(c1.x) > 1.3 || Math.abs(c1.z) > 1.3) return;
+        if (Math.abs(c2.x) > 1.3 || Math.abs(c2.z) > 1.3) return;
+        drawLine(
+          project({ x: c1.x, y: 0.02, z: c1.z }),
+          project({ x: c2.x, y: 0.02, z: c2.z }),
+          'rgba(251,191,36,0.6)', 2.0
+        );
+      }
+    });
+  }
+
+  if (showT) {
+    triangles.forEach((tr) => {
+      const pts = [tr.i, tr.j, tr.k].map(idx => project(sites[idx]));
+      drawPoly(pts, 'rgba(125,211,252,0.14)', 0.55, 'rgba(125,211,252,0.7)', 1.6);
+    });
+  }
+
+  if (showC || showV) {
+    triangles.forEach((tr) => {
+      const cc = tr.cc;
+      if (!cc || cc.r > 1.4) return;
+      if (showC) {
+        const ring = [];
+        for (let i = 0; i <= 36; i++) {
+          const a = 2 * Math.PI * i / 36;
+          ring.push(project({
+            x: cc.x + cc.r * Math.cos(a), y: 0.01, z: cc.z + cc.r * Math.sin(a)
+          }));
+        }
+        drawPoly(ring, null, 0, 'rgba(168,85,247,0.28)', 1);
+      }
+      drawSphere({ x: cc.x, y: 0.03, z: cc.z }, 0.04, '#fbbf24', 0.95);
+    });
+  }
+
+  if (showD && triangles.length) {
+    triangles.forEach((tr) => {
+      if (!tr.cc || tr.cc.r > 1.4) return;
+      const cx = tr.cc.x, cz = tr.cc.z;
+      [tr.i, tr.j, tr.k].forEach(idx => {
+        const s = sites[idx];
+        drawLine(
+          project({ x: s.x, y: 0.04, z: s.z }),
+          project({ x: cx, y: 0.03, z: cz }),
+          'rgba(255,255,255,0.12)', 1, [3, 3]
+        );
+      });
+    });
+  }
+
+  if (step === 0 || step >= 1) {
+    sites.forEach((s, i) => {
+      drawSphere(s, 0.07, s.col, 1);
+      if (view.labels) {
+        const p = project(s);
+        label(String(i + 1), { x: p.x + 10, y: p.y - 10 }, s.col, 14, true);
+      }
+    });
+  }
+
+  const nT = (step === 0 || step >= 2)
+    ? triangles.filter(t => t.cc && t.cc.r <= 1.4).length
+    : 0;
+  const stepNames = currentLang === 'fr'
+    ? ['complet', '1·sites', '2·+Delaunay', '3·+cercles', '4·+Voronoi']
+    : ['complete', '1·sites', '2·+Delaunay', '3·+circles', '4·+Voronoi'];
+  label('Delaunay ' + nT + '△  ·  dual Voronoi  ·  ' + (stepNames[step] || ''), {
+    x: view.W / 2, y: bottomY(0)
+  }, '#eab308', 15, true);
+}
+
+function drawPerspectiveBridge(params) {
+  clearCanvas();
+  const m = Math.max(3, Math.round(params.m ?? 3));
+  const showFlux = params.showFlux !== false;
+  const showForces = params.showForces !== false;
+  const t = view.time;
+  const colors = CLUSTER_COLORS;
+  const step = 2 * Math.PI / m;
+  const R = 1.1;
+  const o = project({ x: 0, y: 0, z: 0 });
+
+  for (let s = 0; s < m; s++) {
+    const a0 = s * step - Math.PI / 2;
+    const a1 = a0 + step;
+    const pts = [o];
+    for (let k = 0; k <= 28; k++) {
+      const a = a0 + (a1 - a0) * (k / 28);
+      pts.push(project({ x: R * Math.cos(a), y: 0.05 * Math.sin(a * 2), z: R * Math.sin(a) }));
+    }
+    drawPoly(pts, colors[s % colors.length], 0.14, colors[s % colors.length], 1.4);
+  }
+
+  if (showForces) {
+    for (let s = 0; s < m; s++) {
+      const am = s * step - Math.PI / 2 + step / 2;
+      const v = { x: 0.7 * Math.cos(am), y: 0, z: 0.7 * Math.sin(am) };
+      drawArrow(o, project(v), colors[s % colors.length], 3);
+    }
+  }
+
+  if (showFlux) {
+    for (let s = 0; s < m; s++) {
+      const am = s * step - Math.PI / 2 + step / 2;
+      const cx = 0.45 * Math.cos(am), cz = 0.45 * Math.sin(am);
+      for (let k = 0; k < 5; k++) {
+        const da = (k - 2) * 0.12;
+        const dx = Math.cos(am + da), dz = Math.sin(am + da);
+        const p1 = project({ x: cx, y: 0, z: cz });
+        const p2 = project({ x: cx + 0.35 * dx, y: 0.05, z: cz + 0.35 * dz });
+        drawArrow(p1, p2, colors[s % colors.length] + '99', 1.5);
+      }
+    }
+  }
+
+  for (let i = 0; i < m * 2; i++) {
+    const a = i * Math.PI / m - Math.PI / 2 + 0.15;
+    const s = { x: 0.95 * Math.cos(a), y: 0, z: 0.95 * Math.sin(a) };
+    drawSphere(s, 0.04, '#fff', 0.7);
+  }
+
+  label(currentLang === 'fr'
+    ? 'Perspective unifiée : bassins · forces · flux'
+    : 'Unified perspective: basins · forces · flux', {
+    x: view.W / 2, y: bottomY(0)
+  }, '#eab308', 16, true);
+}
+
+function drawVoronoiBasins(params) {
+  clearCanvas();
+  const mode = Math.round(params.mode ?? 0);
+  const showField = params.showField !== false;
+  const showBoundaries = params.showBoundaries !== false;
+  const nGrid = Math.min(28, Math.max(12, Math.round(params.resolution ?? 20)));
+  const t = view.time * 0.15;
+  const extent = 1.15;
+
+  let charges = [];
+  if (mode === 0) {
+    charges = [
+      { x: -0.7, y: 0, z: -0.4, q: 5, col: CLUSTER_COLORS[0] },
+      { x: -0.35, y: 0, z: -0.15, q: -5, col: CLUSTER_COLORS[1] },
+      { x: 0.2, y: 0, z: 0.5, q: 5, col: CLUSTER_COLORS[2] },
+      { x: 0.55, y: 0, z: 0.25, q: -5, col: CLUSTER_COLORS[3] },
+      { x: 0.8, y: 0, z: -0.6, q: 5, col: CLUSTER_COLORS[4] },
+      { x: 0.4, y: 0, z: -0.75, q: -5, col: CLUSTER_COLORS[5] }
+    ];
+  } else if (mode === 1) {
+    for (let i = 0; i < 7; i++) {
+      const a = 2 * Math.PI * i / 7 + t;
+      charges.push({ x: 0.75 * Math.cos(a), y: 0, z: 0.75 * Math.sin(a), q: 5, col: CLUSTER_COLORS[i % CLUSTER_COLORS.length] });
+    }
+  } else if (mode === 2) {
+    charges = [
+      { x: -0.8, y: 0, z: 0.3, q: 0.1, col: CLUSTER_COLORS[0] },
+      { x: -0.3, y: 0, z: -0.5, q: -0.4, col: CLUSTER_COLORS[1] },
+      { x: 0.2, y: 0, z: 0.6, q: 0.1, col: CLUSTER_COLORS[2] },
+      { x: 0.7, y: 0, z: -0.2, q: -0.4, col: CLUSTER_COLORS[3] },
+      { x: 0.5, y: 0, z: 0.5, q: 0.1, col: CLUSTER_COLORS[4] },
+      { x: -0.5, y: 0, z: 0.7, q: -0.4, col: CLUSTER_COLORS[5] },
+      { x: 0.0, y: 0, z: 0.0, q: 0.1, col: CLUSTER_COLORS[6 % CLUSTER_COLORS.length] }
+    ];
+  } else {
+    for (let i = 0; i < 8; i++) {
+      const a = 2 * Math.PI * i / 8 + t * 0.5;
+      const r = 0.55 + 0.25 * Math.sin(i * 1.7);
+      charges.push({
+        x: r * Math.cos(a), y: 0, z: r * Math.sin(a),
+        q: 1, col: CLUSTER_COLORS[i % CLUSTER_COLORS.length]
+      });
+    }
+  }
+
+  function labelAt(x, z) {
+    let best = 0, bestScore = Infinity;
+    for (let c = 0; c < charges.length; c++) {
+      const dx = x - charges[c].x, dz = z - charges[c].z;
+      const dist = Math.hypot(dx, dz) + 1e-4;
+      const score = dist / Math.pow(Math.abs(charges[c].q) + 0.05, 0.5);
+      if (score < bestScore) { bestScore = score; best = c; }
+    }
+    return best;
+  }
+
+  const labelGrid = [];
+  for (let i = 0; i < nGrid; i++) {
+    labelGrid[i] = [];
+    for (let j = 0; j < nGrid; j++) {
+      const x = -extent + (2 * extent) * (i + 0.5) / nGrid;
+      const z = -extent + (2 * extent) * (j + 0.5) / nGrid;
+      labelGrid[i][j] = labelAt(x, z);
+    }
+  }
+
+  if (params.showBasins !== false) {
+    const cellPx = Math.max(3, Math.round((Math.min(view.W, view.H) * 0.7) / nGrid));
+    for (let ix = 0; ix < nGrid; ix++) {
+      for (let iz = 0; iz < nGrid; iz++) {
+        const x = -extent + (2 * extent) * (ix + 0.5) / nGrid;
+        const z = -extent + (2 * extent) * (iz + 0.5) / nGrid;
+        const best = labelGrid[ix][iz];
+        const p = project({ x, y: 0, z });
+        ctx.fillStyle = charges[best].col + '66';
+        ctx.fillRect(p.x - cellPx / 2, p.y - cellPx / 2, cellPx, cellPx);
+      }
+    }
+  }
+
+  if (showField) {
+    const nSeeds = Math.min(40, Math.round(params.nSeeds ?? 24));
+    const positives = charges.filter(c => c.q > 0);
+    for (let s = 0; s < nSeeds; s++) {
+      let x, z;
+      if (positives.length > 0) {
+        const c = positives[s % positives.length];
+        const a0 = (s / nSeeds) * Math.PI * 2;
+        const r0 = 0.05;
+        x = c.x + r0 * Math.cos(a0);
+        z = c.z + r0 * Math.sin(a0);
+      } else {
+        const a0 = 2 * Math.PI * s / nSeeds;
+        x = 0.05 * Math.cos(a0);
+        z = 0.05 * Math.sin(a0);
+      }
+      const pts = [];
+      let prevX = x, prevZ = z;
+      for (let iter = 0; iter < 60; iter++) {
+        let Ex = 0, Ez = 0;
+        for (const c of charges) {
+          const dx = x - c.x, dz = z - c.z;
+          const r2 = dx * dx + dz * dz + 0.01;
+          const f = c.q / (r2 * Math.sqrt(r2));
+          Ex += f * dx; Ez += f * dz;
+        }
+        const norm = Math.hypot(Ex, Ez);
+        if (norm < 1e-4) break;
+        const dt = 0.02;
+        x += (Ex / norm) * dt;
+        z += (Ez / norm) * dt;
+        if (Math.hypot(x, z) > extent * 1.4) break;
+        if (Math.hypot(x - prevX, z - prevZ) < 1e-3) break;
+        prevX = x; prevZ = z;
+        let nearNeg = false;
+        for (const c of charges) {
+          if (c.q >= 0) continue;
+          if (Math.hypot(x - c.x, z - c.z) < 0.06) { nearNeg = true; break; }
+        }
+        if (nearNeg) break;
+        pts.push(project({ x, y: 0, z }));
+      }
+      if (pts.length > 2) {
+        ctx.beginPath();
+        pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+        ctx.strokeStyle = 'rgba(220,225,240,0.75)';
+        ctx.lineWidth = 2.2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+      }
+    }
+  }
+
+  if (showBoundaries && nGrid <= 32) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = 1.3;
+    const cell = 2 * extent / nGrid;
+    for (let ix = 0; ix < nGrid - 1; ix++) {
+      for (let iz = 0; iz < nGrid - 1; iz++) {
+        const x0 = -extent + (2 * extent) * (ix + 0.5) / nGrid;
+        const z0 = -extent + (2 * extent) * (iz + 0.5) / nGrid;
+        const lHere = labelGrid[ix][iz];
+        const lRight = labelGrid[ix + 1][iz];
+        const lUp = labelGrid[ix][iz + 1];
+        const pHere = project({ x: x0, y: 0.02, z: z0 });
+        if (lHere !== lRight) {
+          const pRight = project({ x: x0 + cell, y: 0.02, z: z0 });
+          ctx.beginPath();
+          ctx.moveTo(pHere.x, pHere.y);
+          ctx.lineTo(pRight.x, pRight.y);
+          ctx.stroke();
+        }
+        if (lHere !== lUp) {
+          const pUp = project({ x: x0, y: 0.02, z: z0 + cell });
+          ctx.beginPath();
+          ctx.moveTo(pHere.x, pHere.y);
+          ctx.lineTo(pUp.x, pUp.y);
+          ctx.stroke();
+        }
+      }
+    }
+  }
+
+  charges.forEach((c) => {
+    const isSite = (mode === 3);
+    drawSphere({ x: c.x, y: c.y, z: c.z }, isSite ? 0.07 : (0.08 + 0.02 * Math.min(2, Math.abs(c.q))), c.col, 1);
+  });
+
+  const modeNames = currentLang === 'fr'
+    ? ['dipôles', 'toutes +', 'mixte', 'Voronoi sites']
+    : ['dipoles', 'all +', 'mixed', 'Voronoi sites'];
+  label((currentLang === 'fr' ? 'Bassins / Voronoi — ' : 'Basins / Voronoi — ') + (modeNames[mode] || mode), { x: view.W / 2, y: bottomY(0) }, '#eab308', 16, true);
+}
+
+function drawMaxCutDemo(params) {
+  clearCanvas();
+  const n = Math.max(4, Math.min(14, Math.round(params.n || 8)));
+  const dens = Math.min(0.9, Math.max(0.2, params.density ?? 0.45));
+  const t = view.time;
+  const verts = [];
+  for (let i = 0; i < n; i++) {
+    const a = 2 * Math.PI * i / n - Math.PI / 2;
+    verts.push({ x: 1.05 * Math.cos(a), y: 0.15 * Math.sin(a * 2 + t * 0.2), z: 1.05 * Math.sin(a) });
+  }
+  const edges = [];
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      const h = ((i * 17 + j * 31) % 100) / 100;
+      if (h < dens) edges.push([i, j]);
+    }
+  }
+  const u = verts.map(v => {
+    const nn = Math.hypot(v.x, v.y, v.z) || 1;
+    return { x: v.x / nn, y: v.y / nn, z: v.z / nn };
+  });
+  const ga = t * 0.4;
+  let g = { x: Math.cos(ga), y: 0.2 * Math.sin(t * 0.5), z: Math.sin(ga) };
+  const gn = Math.hypot(g.x, g.y, g.z) || 1;
+  g = { x: g.x / gn, y: g.y / gn, z: g.z / gn };
+  const side = u.map(v => (v.x * g.x + v.y * g.y + v.z * g.z) >= 0 ? 1 : -1);
+  let cutVal = 0, sdpVal = 0;
+  edges.forEach(([i, j]) => {
+    const rho = u[i].x * u[j].x + u[i].y * u[j].y + u[i].z * u[j].z;
+    sdpVal += (1 - rho) / 2;
+    if (side[i] !== side[j]) cutVal += 1;
+  });
+  edges.forEach(([i, j]) => {
+    const a = project(verts[i]), b = project(verts[j]);
+    const cross = side[i] !== side[j];
+    drawLine(a, b, cross ? 'rgba(251,191,36,0.9)' : 'rgba(148,163,184,0.4)', cross ? 2.6 : 1.4);
+  });
+  verts.forEach((v, i) => {
+    drawSphere(v, 0.09, side[i] > 0 ? '#ef4444' : '#3b82f6', 0.95);
+  });
+  drawLine(project({ x: -1.3 * g.x, y: -1.3 * g.y, z: -1.3 * g.z }),
+           project({ x: 1.3 * g.x, y: 1.3 * g.y, z: 1.3 * g.z }),
+           'rgba(234,179,8,0.7)', 2, [5, 4]);
+  const ratio = sdpVal > 1e-6 ? (cutVal / sdpVal) : 0;
+  label(`cut=${cutVal}/${edges.length}  ${currentLang === 'fr' ? 'relâché' : 'relaxed'}≈${sdpVal.toFixed(2)}  cut/rel≈${ratio.toFixed(3)}  (α_GW≈0.878 esp.)`, {
+    x: view.W / 2, y: bottomY(0)
+  }, '#f0f0f5', 15, true);
+}
+
+function drawGrothendieckBound(params) {
+  clearCanvas();
+  const n = Math.max(3, Math.min(10, Math.round(params.n || 6)));
+  const t = view.time;
+  const KG = 1.782;
+  const KGlow = 1.676;
+  const a = Array.from({ length: n }, () => Array(n).fill(0));
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      let v = Math.sin(i * 2.3 + j * 1.7) + 0.3 * Math.cos(i * 1.1 - j * 0.9);
+      if (Math.abs(v) < 0.05) v = 0.3;
+      a[i][j] = a[j][i] = v;
+    }
+  }
+  const u = [];
+  for (let i = 0; i < n; i++) {
+    const ang = 2 * Math.PI * i / n + t * 0.15;
+    const elev = 0.35 * Math.sin(ang * 1.3 + t * 0.2);
+    let v = { x: Math.cos(ang), y: elev, z: Math.sin(ang) };
+    const nn = Math.hypot(v.x, v.y, v.z) || 1;
+    u.push({ x: v.x / nn, y: v.y / nn, z: v.z / nn });
+  }
+  let sdp = 0;
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      sdp += a[i][j] * (u[i].x * u[j].x + u[i].y * u[j].y + u[i].z * u[j].z);
+    }
+  }
+  sdp = Math.abs(sdp);
+  let maxBool = 0;
+  const lim = 1 << (n - 1);
+  for (let mask = 0; mask < lim; mask++) {
+    const eps = [];
+    for (let i = 0; i < n; i++) eps.push((mask >> i) & 1 ? 1 : -1);
+    let s = 0;
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) s += a[i][j] * eps[i] * eps[j];
+    }
+    maxBool = Math.max(maxBool, Math.abs(s));
+  }
+  const ratio = maxBool > 1e-9 ? sdp / maxBool : 0;
+
+  const o = project({ x: 0, y: 0, z: 0 });
+  const R = 1.0;
+  const ring = [];
+  for (let i = 0; i <= 40; i++) {
+    const a0 = 2 * Math.PI * i / 40;
+    ring.push(project({ x: R * Math.cos(a0), y: 0, z: R * Math.sin(a0) }));
+  }
+  drawPoly(ring, null, 0, 'rgba(255,255,255,0.18)', 1.2);
+  for (let i = 0; i < n; i++) {
+    const pi = project({ x: u[i].x * R, y: u[i].y * R, z: u[i].z * R });
+    drawArrow(o, pi, '#7dd3fc', 2.4);
+    label('u' + (i + 1), { x: pi.x + 10, y: pi.y - 10 }, '#7dd3fc', 16, true);
+  }
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      if (Math.abs(a[i][j]) < 0.35) continue;
+      const a1 = project({ x: u[i].x * R, y: u[i].y * R, z: u[i].z * R });
+      const a2 = project({ x: u[j].x * R, y: u[j].y * R, z: u[j].z * R });
+      const pos = a[i][j] > 0;
+      drawLine(a1, a2, pos ? 'rgba(34,197,94,0.55)' : 'rgba(239,68,68,0.55)', 1.5);
+    }
+  }
+  const barX0 = view.W * 0.2, barX1 = view.W * 0.8, barY = bottomY(28);
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(barX0, barY); ctx.lineTo(barX1, barY); ctx.stroke();
+  const xRatio = barX0 + Math.min(1, ratio / 2.2) * (barX1 - barX0);
+  const xKG = barX0 + (KG / 2.2) * (barX1 - barX0);
+  const xKGlow = barX0 + (KGlow / 2.2) * (barX1 - barX0);
+  ctx.fillStyle = '#eab308';
+  ctx.beginPath(); ctx.arc(xRatio, barY, 7, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#22c55e';
+  ctx.beginPath(); ctx.arc(xKG, barY, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#3b82f6';
+  ctx.beginPath(); ctx.arc(xKGlow, barY, 5, 0, Math.PI * 2); ctx.fill();
+  label(`SDP/bool≈${ratio.toFixed(3)}`, { x: xRatio, y: barY - 18 }, '#eab308', 14, true);
+  label(`K_G≤${KG}`, { x: xKG, y: barY + 18 }, '#22c55e', 13, true);
+  label(`K_G≥${KGlow}`, { x: xKGlow, y: barY + 34 }, '#3b82f6', 12, true);
+  label(`|SDP|=${sdp.toFixed(2)}  max|±1|=${maxBool.toFixed(2)}`, {
+    x: view.W / 2, y: bottomY(0)
+  }, '#f0f0f5', 15, true);
+}
+
+function fibSphere(n) {
+  const pts = [];
+  const ga = Math.PI * (3 - Math.sqrt(5));
+  for (let i = 0; i < n; i++) {
+    const y = 1 - (i / Math.max(1, n - 1)) * 2;
+    const r = Math.sqrt(Math.max(0, 1 - y * y));
+    const a = ga * i;
+    pts.push({ x: Math.cos(a) * r, y: y, z: Math.sin(a) * r });
+  }
+  return pts;
+}
+
+function buildRegularGraph(n, d) {
+  const verts = fibSphere(n);
+  const adj = Array.from({ length: n }, () => []);
+  for (let i = 0; i < n; i++) {
+    const dists = [];
+    for (let j = 0; j < n; j++) {
+      if (i === j) continue;
+      const dx = verts[i].x - verts[j].x;
+      const dy = verts[i].y - verts[j].y;
+      const dz = verts[i].z - verts[j].z;
+      dists.push({ j, dist: dx*dx + dy*dy + dz*dz });
+    }
+    dists.sort((a, b) => a.dist - b.dist);
+    for (let k = 0; k < Math.min(d, dists.length); k++) {
+      const j = dists[k].j;
+      if (!adj[i].includes(j)) adj[i].push(j);
+      if (!adj[j].includes(i)) adj[j].push(i);
+    }
+  }
+  return { verts, adj, d, n };
+}
+
+function clusterLabels(n, k, method, t) {
+  const labels = new Array(n);
+  if (method === 'latitude') {
+    for (let i = 0; i < n; i++) {
+      const y = 1 - (i / Math.max(1, n - 1)) * 2;
+      labels[i] = Math.min(k - 1, Math.floor(((y + 1) / 2) * k));
+    }
+  } else if (method === 'spectral' || method === 'angular-anim') {
+    for (let i = 0; i < n; i++) {
+      const a = (Math.PI * (3 - Math.sqrt(5)) * i + t * 0.15) % (Math.PI * 2);
+      labels[i] = Math.floor(((a + Math.PI * 2) % (Math.PI * 2)) / (Math.PI * 2 / k)) % k;
+    }
+  } else if (method === 'randomwalk') {
+    for (let i = 0; i < n; i++) {
+      const phase = Math.sin(i * 0.7 + t * 0.4) + Math.cos(i * 1.3 - t * 0.25);
+      labels[i] = Math.min(k - 1, Math.floor(((phase + 2) / 4) * k));
+    }
+  } else {
+    for (let i = 0; i < n; i++) {
+      const a = Math.PI * (3 - Math.sqrt(5)) * i;
+      labels[i] = Math.floor(((a % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) / (Math.PI * 2 / k)) % k;
+    }
+  }
+  return labels;
+}
+
+const CLUSTER_COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#a855f7', '#eab308', '#06b6d4', '#f97316', '#ec4899'];
+
+function drawRamanujanGraph(params) {
+  clearCanvas();
+  const n = Math.max(8, Math.round(params.n || 24));
+  const d = Math.max(2, Math.round(params.degree || 3));
+  const showGap = params.showGap !== false;
+  const showExpand = params.showExpand !== false;
+  const g = buildRegularGraph(n, d);
+  const t = view.time;
+  const R = 1.05;
+
+  const edges = [];
+  for (let i = 0; i < n; i++) {
+    for (const j of g.adj[i]) {
+      if (j > i) {
+        const mid = {
+          x: (g.verts[i].x + g.verts[j].x) / 2,
+          y: (g.verts[i].y + g.verts[j].y) / 2,
+          z: (g.verts[i].z + g.verts[j].z) / 2
+        };
+        edges.push({ i, j, depth: project({ x: mid.x * R, y: mid.y * R, z: mid.z * R }).depth });
+      }
+    }
+  }
+  edges.sort((a, b) => a.depth - b.depth);
+  edges.forEach(e => {
+    const a = project({ x: g.verts[e.i].x * R, y: g.verts[e.i].y * R, z: g.verts[e.i].z * R });
+    const b = project({ x: g.verts[e.j].x * R, y: g.verts[e.j].y * R, z: g.verts[e.j].z * R });
+    drawLine(a, b, 'rgba(125,211,252,0.65)', 2.0);
+  });
+
+  const order = g.verts.map((v, i) => ({ i, depth: project({ x: v.x * R, y: v.y * R, z: v.z * R }).depth }));
+  order.sort((a, b) => a.depth - b.depth);
+  order.forEach(({ i }) => {
+    const v = g.verts[i];
+    const pulse = 0.9 + 0.1 * Math.sin(t * 2 + i);
+    drawSphere({ x: v.x * R, y: v.y * R, z: v.z * R }, 0.08 * pulse, '#7dd3fc', 0.95);
+  });
+
+  if (showGap) {
+    const bound = 2 * Math.sqrt(Math.max(0, d - 1));
+    label(`λ₂ ≤ 2√(d−1) ≈ ${bound.toFixed(2)}`, { x: view.W / 2, y: bottomY(4) }, '#fbbf24', 18, true);
+    label(`n=${n},  d=${d} (${currentLang === 'fr' ? 'quasi-régulier' : 'quasi-regular'})`, { x: view.W / 2, y: bottomY(30) }, '#94a3b8', 17, true);
+  }
+
+  if (showExpand) {
+    const sSize = Math.max(2, Math.floor(n / 5));
+    for (let i = 0; i < sSize; i++) {
+      const v = g.verts[i];
+      drawSphere({ x: v.x * R * 1.02, y: v.y * R * 1.02, z: v.z * R * 1.02 }, 0.09, '#fbbf24', 0.85);
+    }
+    label(`S ⊂ V  (${currentLang === 'fr' ? 'expansion' : 'expansion'})`, { x: view.W * 0.2, y: bottomY(52) }, '#fbbf24', 15, true);
+  }
+}
+
+function drawSpectralGap(params) {
+  clearCanvas();
+  const d = Math.max(2, Math.round(params.degree || 4));
+  const n = Math.max(12, Math.round(params.n || 20));
+  const t = view.time;
+  const bound = 2 * Math.sqrt(d - 1);
+  const eigs = [d];
+  for (let i = 1; i < n; i++) {
+    const u = (i - 0.5) / (n - 1);
+    const theta = Math.PI * u;
+    eigs.push(bound * Math.cos(theta) * (0.85 + 0.15 * Math.sin(t * 0.3 + i)));
+  }
+  eigs.sort((a, b) => b - a);
+
+  const x0 = -1.2, x1 = 1.2;
+  const yAxis = -0.9;
+  const oL = project({ x: x0, y: yAxis, z: 0 });
+  const oR = project({ x: x1, y: yAxis, z: 0 });
+  drawLine(oL, oR, 'rgba(255,255,255,0.45)', 2);
+  const mark = (val, col, lab) => {
+    const x = (val / (d + 0.5)) * 1.1;
+    const p = project({ x: x, y: yAxis, z: 0 });
+    drawLine(project({ x: x, y: yAxis - 0.08, z: 0 }), project({ x: x, y: yAxis + 0.08, z: 0 }), col, 2.5);
+    label(lab, { x: p.x, y: p.y + 22 }, col, 15, true);
+  };
+  mark(bound, '#22c55e', '+2√(d−1)');
+  mark(-bound, '#22c55e', '−2√(d−1)');
+  mark(d, '#ef4444', 'd');
+  mark(0, '#94a3b8', '0');
+
+  eigs.forEach((lam, i) => {
+    const x = (lam / (d + 0.5)) * 1.1;
+    const h = 0.15 + 0.55 * (i === 0 ? 1 : 0.4 + 0.3 * Math.sin(t + i));
+    const inside = Math.abs(lam) <= bound + 0.05 || i === 0;
+    const col = i === 0 ? '#ef4444' : (inside ? 'rgba(125,211,252,0.85)' : 'rgba(248,113,113,0.9)');
+    const a = project({ x: x, y: yAxis, z: 0 });
+    const b = project({ x: x, y: yAxis + h, z: 0.1 * Math.sin(i) });
+    drawLine(a, b, col, i === 0 ? 4 : 2.8);
+    if (i === 0) drawSphere({ x: x, y: yAxis + h, z: 0 }, 0.07, '#ef4444', 1);
+  });
+
+  label(`d=${d}  ·  |λ| ≤ 2√(d−1) ≈ ${bound.toFixed(2)}`, { x: view.W / 2, y: bottomY(0) }, '#fbbf24', 17, true);
+}
+
+function drawGraphClusters(params) {
+  clearCanvas();
+  const n = Math.max(10, Math.round(params.n || 30));
+  const d = Math.max(2, Math.round(params.degree || 3));
+  const k = Math.max(2, Math.round(params.k || 3));
+  const method = params.method || 0;
+  const methods = ['angular', 'latitude', 'angular-anim', 'randomwalk'];
+  const mname = methods[Math.min(methods.length - 1, Math.max(0, Math.round(method)))];
+  const showEdges = params.showEdges !== false;
+  const showCenters = params.showCenters !== false;
+  const g = buildRegularGraph(n, d);
+  const labels = clusterLabels(n, k, mname, view.time);
+  const R = 1.05;
+  const t = view.time;
+
+  if (showEdges) {
+    const edges = [];
+    for (let i = 0; i < n; i++) {
+      for (const j of g.adj[i]) {
+        if (j <= i) continue;
+        const same = labels[i] === labels[j];
+        const mid = {
+          x: (g.verts[i].x + g.verts[j].x) / 2,
+          y: (g.verts[i].y + g.verts[j].y) / 2,
+          z: (g.verts[i].z + g.verts[j].z) / 2
+        };
+        edges.push({ i, j, same, depth: project({ x: mid.x * R, y: mid.y * R, z: mid.z * R }).depth });
+      }
+    }
+    edges.sort((a, b) => a.depth - b.depth);
+    edges.forEach(e => {
+      const a = project({ x: g.verts[e.i].x * R, y: g.verts[e.i].y * R, z: g.verts[e.i].z * R });
+      const b = project({ x: g.verts[e.j].x * R, y: g.verts[e.j].y * R, z: g.verts[e.j].z * R });
+      drawLine(a, b, e.same ? 'rgba(255,255,255,0.25)' : 'rgba(251,191,36,0.85)', e.same ? 1.6 : 2.4);
+    });
+  }
+
+  const order = g.verts.map((v, i) => ({ i, depth: project({ x: v.x * R, y: v.y * R, z: v.z * R }).depth }));
+  order.sort((a, b) => a.depth - b.depth);
+  order.forEach(({ i }) => {
+    const v = g.verts[i];
+    const c = CLUSTER_COLORS[labels[i] % CLUSTER_COLORS.length];
+    drawSphere({ x: v.x * R, y: v.y * R, z: v.z * R }, 0.08, c, 0.95);
+  });
+
+  if (showCenters) {
+    const centers = Array.from({ length: k }, () => ({ x: 0, y: 0, z: 0, c: 0 }));
+    for (let i = 0; i < n; i++) {
+      const lab = labels[i];
+      centers[lab].x += g.verts[i].x;
+      centers[lab].y += g.verts[i].y;
+      centers[lab].z += g.verts[i].z;
+      centers[lab].c++;
+    }
+    const o = project({ x: 0, y: 0, z: 0 });
+    centers.forEach((c, lab) => {
+      if (!c.c) return;
+      const p = { x: c.x / c.c, y: c.y / c.c, z: c.z / c.c };
+      p.x *= 0.7; p.y *= 0.7; p.z *= 0.7;
+      const pe = project(p);
+      drawArrow(o, pe, CLUSTER_COLORS[lab % CLUSTER_COLORS.length], 3.0);
+      drawSphere(p, 0.10, CLUSTER_COLORS[lab % CLUSTER_COLORS.length], 1);
+    });
+  }
+
+  label(`Clusters k=${k} · ${mname}`, { x: view.W / 2, y: bottomY(4) }, '#eab308', 20, true);
+  label(currentLang === 'fr'
+    ? 'Arêtes or = coupe  ·  flèches = centroïdes (propeller)'
+    : 'Golden edges = cut  ·  arrows = centroids (propeller)', { x: view.W / 2, y: bottomY(30) }, '#94a3b8', 16, true);
+}
+
+function drawUGCHardness(params) {
+  clearCanvas();
+  const k = Math.max(2, Math.round(params.k || 3));
+  const n = Math.max(6, Math.round(params.n || 12));
+  const completeness = params.completeness !== false;
+  const t = view.time;
+  const verts = fibSphere(n);
+  const R = 1.0;
+  const o = project({ x: 0, y: 0, z: 0 });
+
+  for (let i = 0; i < n; i++) {
+    const v = verts[i];
+    const pe = project({ x: v.x * R, y: v.y * R, z: v.z * R });
+    const col = CLUSTER_COLORS[i % k];
+    drawArrow(o, pe, col, 2.4);
+    drawSphere({ x: v.x * R, y: v.y * R, z: v.z * R }, 0.07, col, 0.95);
+  }
+
+  const gx = Math.cos(t * 0.4), gz = Math.sin(t * 0.4), gy = 0.3 * Math.sin(t * 0.25);
+  let gUnit = { x: gx, y: gy, z: gz };
+  const gn = Math.hypot(gUnit.x, gUnit.y, gUnit.z) || 1;
+  gUnit = { x: gUnit.x / gn, y: gUnit.y / gn, z: gUnit.z / gn };
+  const tmp = Math.abs(gUnit.x) < 0.9 ? { x: 1, y: 0, z: 0 } : { x: 0, y: 1, z: 0 };
+  let uRaw = {
+    x: gUnit.y * tmp.z - gUnit.z * tmp.y,
+    y: gUnit.z * tmp.x - gUnit.x * tmp.z,
+    z: gUnit.x * tmp.y - gUnit.y * tmp.x
+  };
+  const un = Math.hypot(uRaw.x, uRaw.y, uRaw.z) || 1;
+  const uu = { x: uRaw.x / un, y: uRaw.y / un, z: uRaw.z / un };
+  const vv = {
+    x: gUnit.y * uu.z - gUnit.z * uu.y,
+    y: gUnit.z * uu.x - gUnit.x * uu.z,
+    z: gUnit.x * uu.y - gUnit.y * uu.x
+  };
+  const plane = [];
+  for (let i = 0; i <= 48; i++) {
+    const a = 2 * Math.PI * i / 48;
+    plane.push(project({
+      x: 0.95 * (uu.x * Math.cos(a) + vv.x * Math.sin(a)),
+      y: 0.95 * (uu.y * Math.cos(a) + vv.y * Math.sin(a)),
+      z: 0.95 * (uu.z * Math.cos(a) + vv.z * Math.sin(a))
+    }));
+  }
+  drawPoly(plane, 'rgba(251,191,36,0.08)', 0.5, 'rgba(251,191,36,0.55)', 1.5);
+  label(completeness
+    ? (currentLang === 'fr' ? 'Completeness : labels cohérents' : 'Completeness: consistent labels')
+    : (currentLang === 'fr' ? 'Soundness : expansion → labels bruités' : 'Soundness: expansion → noisy labels'),
+    { x: view.W / 2, y: bottomY(4) }, completeness ? '#22c55e' : '#f43f5e', 18, true);
+  label(currentLang === 'fr'
+    ? 'UGC / Unique Games — vecteurs SDP + coupe'
+    : 'UGC / Unique Games — SDP vectors + cut',
+    { x: view.W / 2, y: bottomY(30) }, '#a855f7', 17, true);
+}
+
+function drawPropellerGraphBridge(params) {
+  clearCanvas();
+  const m = Math.max(3, Math.round(params.m || 3));
+  const n = Math.max(12, Math.round(params.n || 24));
+  const showForces = params.showForces !== false;
+  const showGraph = params.showGraph !== false;
+  const t = view.time;
+  const R = 1.15;
+  const colors = CLUSTER_COLORS;
+  const o = project({ x: 0, y: 0, z: 0 });
+  const step = 2 * Math.PI / m;
+
+  for (let s = 0; s < m; s++) {
+    const a0 = s * step - Math.PI / 2;
+    const a1 = a0 + step;
+    const pts = [o];
+    for (let k = 0; k <= 28; k++) {
+      const a = a0 + (a1 - a0) * (k / 28);
+      pts.push(project({ x: R * Math.cos(a), y: 0.05 * Math.sin(a * 2), z: R * Math.sin(a) }));
+    }
+    drawPoly(pts, colors[s % colors.length], 0.12, 'rgba(255,255,255,0.08)', 1);
+  }
+
+  if (showGraph) {
+    const g = buildRegularGraph(n, 3);
+    for (let i = 0; i < n; i++) {
+      const v = g.verts[i];
+      let ang = Math.atan2(v.z, v.x) + Math.PI / 2;
+      ang = ((ang % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+      const lab = Math.floor(ang / step) % m;
+      const rr = 0.85;
+      drawSphere({ x: v.x * rr, y: v.y * rr * 0.6, z: v.z * rr }, 0.06, colors[lab % colors.length], 0.95);
+    }
+    for (let i = 0; i < n; i++) {
+      for (const j of g.adj[i]) {
+        if (j <= i) continue;
+        if ((i + j) % 3 !== 0) continue;
+        const a = project({ x: g.verts[i].x * 0.85, y: g.verts[i].y * 0.5, z: g.verts[i].z * 0.85 });
+        const b = project({ x: g.verts[j].x * 0.85, y: g.verts[j].y * 0.5, z: g.verts[j].z * 0.85 });
+        drawLine(a, b, 'rgba(255,255,255,0.35)', 1.4);
+      }
+    }
+  }
+
+  if (showForces) {
+    for (let s = 0; s < m; s++) {
+      const am = s * step - Math.PI / 2 + step / 2;
+      const v = { x: 0.75 * Math.cos(am), y: 0, z: 0.75 * Math.sin(am) };
+      const e = project(v);
+      drawArrow(o, e, colors[s % colors.length], 3.2);
+      label('ẑ' + (s + 1), { x: e.x + 14, y: e.y - 14 }, colors[s % colors.length], 18, true);
+    }
+  }
+
+  label(currentLang === 'fr'
+    ? 'Propeller ⊕ graphe ⊕ forces'
+    : 'Propeller ⊕ graph ⊕ forces', { x: view.W / 2, y: bottomY(4) }, '#eab308', 20, true);
+  label(currentLang === 'fr'
+    ? 'Clusters = secteurs = bassins de scores'
+    : 'Clusters = sectors = score basins',
+    { x: view.W / 2, y: bottomY(30) }, '#94a3b8', 16, true);
+}
+
+function drawExpansionVsCut(params) {
+  clearCanvas();
+  const n = Math.max(16, Math.round(params.n || 28));
+  const d = Math.max(2, Math.round(params.degree || 3));
+  const cutRatio = Math.min(0.5, Math.max(0.1, params.cutRatio ?? 0.25));
+  const g = buildRegularGraph(n, d);
+  const R = 1.05;
+  const sSize = Math.max(2, Math.floor(n * cutRatio));
+  const inS = (i) => i < sSize;
+
+  for (let i = 0; i < n; i++) {
+    for (const j of g.adj[i]) {
+      if (j <= i) continue;
+      const a = project({ x: g.verts[i].x * R, y: g.verts[i].y * R, z: g.verts[i].z * R });
+      const b = project({ x: g.verts[j].x * R, y: g.verts[j].y * R, z: g.verts[j].z * R });
+      const boundary = inS(i) !== inS(j);
+      drawLine(a, b, boundary ? 'rgba(251,191,36,0.9)' : 'rgba(148,163,184,0.4)', boundary ? 2.4 : 1.4);
+    }
+  }
+  for (let i = 0; i < n; i++) {
+    const v = g.verts[i];
+    drawSphere({ x: v.x * R, y: v.y * R, z: v.z * R }, 0.08, inS(i) ? '#fbbf24' : '#7dd3fc', 0.95);
+  }
+  let boundary = 0, total = 0;
+  for (let i = 0; i < n; i++) {
+    for (const j of g.adj[i]) {
+      if (j <= i) continue;
+      total++;
+      if (inS(i) !== inS(j)) boundary++;
+    }
+  }
+  const hApprox = (boundary / Math.max(1, Math.min(sSize, n - sSize))).toFixed(2);
+  label(`Expansion h(S) ≈ ${hApprox}  ·  |S|=${sSize}`, { x: view.W / 2, y: bottomY(4) }, '#fbbf24', 17, true);
+  label(currentLang === 'fr'
+    ? 'Or = arêtes de coupe  ·  lien NP-hard Max-Cut / UGC'
+    : 'Gold = cut edges  ·  NP-hard Max-Cut / UGC link',
+    { x: view.W / 2, y: bottomY(30) }, '#94a3b8', 16, true);
+}
+
+/* =====================================================================
+   STORY
+   ===================================================================== */
+const STORY = [
+  {
+    id: 'threeforces', tag: 'BRI', title: "Fig. 1 — Équilibre de trois forces concourantes",
+    tex: String.raw`P+Q+S=0 \;\Longleftrightarrow\; \hat{z}_1+\hat{z}_2+\hat{z}_3=0`,
+    desc: "<strong>Leçon 3 §24</strong> — Trois forces P, Q, S concourent en O et se neutralisent : équilibre. Même géométrie que les centroïdes du propeller à 120° : le polygone des forces se referme. Chaque secteur est le bassin d'une force / d'un centroïde.",
+    draw: drawThreeForces,
+    params: [
+      { key: 'm', label: 'Nombre de secteurs m', min: 3, max: 6, step: 1, value: 3 },
+      { key: 'radius', label: 'Rayon', min: 0.6, max: 1.6, step: 0.05, value: 1.15 },
+      { key: 'showPolygon', label: 'Polygone des forces', type: 'bool', value: true },
+      { key: 'showEq', label: 'Équation ∑ẑᵢ=0', type: 'bool', value: true }
+    ],
+    legendLeft: {
+      title: "Forces",
+      items: [
+        { color: '#ef4444', text: "<strong>ẑ₁</strong> — force P" },
+        { color: '#3b82f6', text: "<strong>ẑ₂</strong> — force Q" },
+        { color: '#22c55e', text: "<strong>ẑ₃</strong> — force S" }
+      ],
+      eq: String.raw`P+Q+S=0`
+    },
+    legendRight: {
+      title: "Polygone",
+      items: [
+        { color: '#eab308', text: "Polygone fermé" },
+        { color: '#a855f7', text: "Secteurs = cônes" }
+      ],
+      eq: String.raw`\sum\hat{z}_i=0`
+    }
+  },
+  {
+    id: 'helixforces', tag: 'BRI', title: "Hélice 3D + forces de Lagrange",
+    tex: String.raw`A_i=S_i\times\mathbb{R}^{d-2},\quad \hat{z}_1+\hat{z}_2+\hat{z}_3=0`,
+    desc: "L'hélice extrudée (secteurs × ℝ) porte les flèches de centroïdes comme des <strong>forces concourantes</strong> en O. L'axe vertical rappelle l'extension orthogonale du paper : la norme des moments est invariante par extrusion.",
+    draw: drawHelixForces,
+    params: [
+      { key: 'm', label: 'Pales m', min: 3, max: 5, step: 1, value: 3 },
+      { key: 'radius', label: 'Rayon', min: 0.6, max: 1.5, step: 0.05, value: 1.1 },
+      { key: 'height', label: 'Hauteur extrusion', min: 0.3, max: 1.4, step: 0.05, value: 0.9 },
+      { key: 'showAxis', label: 'Axe ℝ^{d−2}', type: 'bool', value: true },
+      { key: 'showLabels', label: 'Labels P,Q,S', type: 'bool', value: true }
+    ],
+    legendLeft: {
+      title: "Propeller",
+      items: [
+        { color: '#ef4444', text: "Secteur / force P" },
+        { color: '#3b82f6', text: "Secteur / force Q" },
+        { color: '#22c55e', text: "Secteur / force S" }
+      ],
+      eq: String.raw`\sum\hat{z}_i=0`
+    },
+    legendRight: {
+      title: "Extrusion",
+      items: [
+        { color: '#eab308', text: "Axe orthogonal" },
+        { color: '#fff', text: "Norme ‖z‖ invariante" }
+      ],
+      eq: String.raw`S_i\times\mathbb{R}^{d-2}`
+    }
+  },
+  {
+    id: 'parallelogram', tag: 'LAG', title: "Fig. 6 — Théorème du parallélogramme des forces",
+    tex: String.raw`\vec{R}=\vec{P}+\vec{Q}`,
+    desc: "<strong>Leçon 3 §29</strong> — La résultante de deux forces concourantes est la diagonale du parallélogramme construit sur ces forces. Lien avec le propeller : la diagonale R est le lieu où deux scores s'égalisent (frontière de cônes).",
+    draw: drawParallelogram,
+    params: [
+      { key: 'aP', label: 'Longueur P', min: 0.3, max: 1.4, step: 0.05, value: 0.95 },
+      { key: 'aQ', label: 'Longueur Q', min: 0.3, max: 1.4, step: 0.05, value: 0.75 },
+      { key: 'angle', label: 'Angle (rad)', min: 0.2, max: 1.4, step: 0.05, value: 0.7 },
+      { key: 'lift', label: 'Élévation', min: -0.4, max: 0.4, step: 0.05, value: 0 },
+      { key: 'animateAngle', label: 'Animer l\'angle', type: 'bool', value: true }
+    ],
+    legendLeft: {
+      title: "Forces",
+      items: [
+        { color: '#ef4444', text: "<strong>P</strong>" },
+        { color: '#3b82f6', text: "<strong>Q</strong>" },
+        { color: '#22c55e', text: "<strong>R = P+Q</strong>" }
+      ],
+      eq: String.raw`R^2=P^2+Q^2+2PQ\cos\theta`
+    },
+    legendRight: {
+      title: "Dualité",
+      items: [
+        { color: '#a855f7', text: "Diagonale = frontière" },
+        { color: '#eab308', text: "Côtés pointillés" }
+      ],
+      eq: String.raw`\sqrt{C}\ \mathrm{max}`
+    }
+  },
+  {
+    id: 'parallelepiped', tag: 'LAG', title: "Parallélépipède 3D → dimension d",
+    tex: String.raw`\vec{R}=\vec{P}+\vec{Q}+\vec{S}`,
+    desc: "Parallélépipède sur P, Q, S : analogue 3D de l'extension orthogonale. La diagonale R est préservée comme ‖z(Aᵢ)‖ sous produit par ℝ^{d−2}.",
+    draw: drawParallelepiped,
+    params: [
+      { key: 'aP', label: 'Longueur P', min: 0.3, max: 1.4, step: 0.05, value: 1.0 },
+      { key: 'aQ', label: 'Longueur Q', min: 0.3, max: 1.4, step: 0.05, value: 0.85 },
+      { key: 'aS', label: 'Longueur S', min: 0.3, max: 1.4, step: 0.05, value: 0.7 },
+      { key: 'showFaces', label: 'Faces semi-transparentes', type: 'bool', value: true }
+    ],
+    legendLeft: {
+      title: "Arêtes",
+      items: [
+        { color: '#ef4444', text: "<strong>P</strong> — x" },
+        { color: '#3b82f6', text: "<strong>Q</strong> — y" },
+        { color: '#eab308', text: "<strong>S</strong> — z" }
+      ],
+      eq: String.raw`|R|^2=P^2+Q^2+S^2`
+    },
+    legendRight: {
+      title: "Diagonale",
+      items: [
+        { color: '#22c55e', text: "<strong>R = P+Q+S</strong>" },
+        { color: '#8c8caa', text: "Squelette" }
+      ],
+      eq: String.raw`\mathrm{extrusion}`
+    }
+  },
+  {
+    id: 'forcebalance', tag: 'LAG', title: "Équilibre 3D de trois forces",
+    tex: String.raw`\vec{P}+\vec{Q}+\vec{S}=\mathbf{0}`,
+    desc: "Trois forces non coplanaires dont la somme est nulle. Le polygone doré se referme dans l'espace : même principe que ∑ẑᵢ = 0 pour le propeller, en 3D.",
+    draw: drawForceBalance3D,
+    params: [
+      { key: 'scale', label: 'Échelle', min: 0.5, max: 1.4, step: 0.05, value: 1.0 },
+      { key: 'showPlane', label: 'Plan de référence', type: 'bool', value: true }
+    ],
+    legendLeft: {
+      title: "Forces",
+      items: [
+        { color: '#ef4444', text: "P" },
+        { color: '#3b82f6', text: "Q" },
+        { color: '#22c55e', text: "S = −P−Q" }
+      ],
+      eq: String.raw`P+Q+S=0`
+    },
+    legendRight: {
+      title: "Fermeture",
+      items: [
+        { color: '#eab308', text: "Polygone des forces" },
+        { color: '#a855f7', text: "Plan exact des forces" }
+      ],
+      eq: String.raw`\sum F_i=0`
+    }
+  },
+  {
+    id: 'parallel', tag: 'LAG', title: "Fig. 5 — Forces parallèles",
+    tex: String.raw`R=P+Q,\quad \frac{AC}{CB}=\frac{Q}{P}`,
+    desc: "<strong>Leçon 3 §27</strong> — Deux forces parallèles P et Q appliquées en A et B. La résultante R = P+Q s'applique en C tel que AC/CB = Q/P. Composition successive des forces parallèles.",
+    draw: drawParallelForces,
+    params: [
+      { key: 'P', label: 'Force P', min: 5, max: 40, step: 1, value: 20 },
+      { key: 'Q', label: 'Force Q', min: 5, max: 40, step: 1, value: 15 }
+    ],
+    legendLeft: {
+      title: "Forces",
+      items: [
+        { color: '#ef4444', text: "P en A" },
+        { color: '#3b82f6', text: "Q en B" },
+        { color: '#22c55e', text: "R en C" }
+      ],
+      eq: String.raw`R=P+Q`
+    },
+    legendRight: {
+      title: "Levier",
+      items: [
+        { color: '#eab308', text: "AC/CB = Q/P" },
+        { color: '#fff', text: "Même sens → somme" }
+      ],
+      eq: String.raw`\S 27`
+    }
+  },
+  {
+    id: 'dipole', tag: 'HYD', title: "Dipôle source/puits ↔ deux scores",
+    tex: String.raw`\mathbf{v}(\mathbf{r})\propto\frac{\mathbf{r}-\mathbf{r}_+}{|\mathbf{r}-\mathbf{r}_+|^3}-\frac{\mathbf{r}-\mathbf{r}_-}{|\mathbf{r}-\mathbf{r}_-|^3}`,
+    desc: "Dipôle hydrostatique : visualisation du Lemme 2.2 — deux cônes « dos à dos » avec ⟨zᵢ,zⱼ⟩ < 0. La médiatrice = frontière où les scores s'égalisent.",
+    draw: drawDipole,
+    params: [
+      { key: 'd', label: 'Distance source-puits', min: 0.6, max: 1.8, step: 0.05, value: 1.15 },
+      { key: 'nLines', label: 'Lignes de courant', min: 6, max: 24, step: 1, value: 14 },
+      { key: 'showField', label: 'Petites flèches de champ', type: 'bool', value: true }
+    ],
+    legendLeft: {
+      title: "Charges",
+      items: [
+        { color: '#ef4444', text: "+ source" },
+        { color: '#3b82f6', text: "− puits" }
+      ],
+      eq: String.raw`\langle z_i,z_j\rangle<0`
+    },
+    legendRight: {
+      title: "Lignes",
+      items: [
+        { color: '#78b4ff', text: "Lignes de courant" },
+        { color: '#ffcc55', text: "Champ local" }
+      ],
+      eq: String.raw`\mathrm{dipôle}`
+    }
+  },
+  {
+    id: 'hexapole', tag: 'HYD', title: "Hexapôle 2D (plan) ↔ propeller m = 6",
+    tex: String.raw`\sum_{i=1}^{6} Q_i\,\frac{\mathbf{r}-\mathbf{r}_i}{|\mathbf{r}-\mathbf{r}_i|^3}`,
+    desc: "Hexapôle (3+ / 3−) : même symétrie C₃ que le propeller à m=3. Décomposition en contributions positives et négatives des moments z(Aᵢ).",
+    draw: drawHexapole,
+    params: [
+      { key: 'R', label: 'Rayon des charges', min: 0.5, max: 1.4, step: 0.05, value: 0.95 },
+      { key: 'showField', label: 'Champ de flèches', type: 'bool', value: true }
+    ],
+    legendLeft: {
+      title: "Charges (plan y=0)",
+      items: [
+        { color: '#ef4444', text: "3 sources + (plan)" },
+        { color: '#3b82f6', text: "3 puits − (plan)" }
+      ],
+      eq: String.raw`\mathrm{C}_3`
+    },
+    legendRight: {
+      title: "Champ",
+      items: [
+        { color: '#ffcc55', text: "Flèches de champ" },
+        { color: '#a855f7', text: "m = 6 cellules" }
+      ],
+      eq: String.raw`\sum Q_i=0`
+    }
+  },
+  {
+    id: 'coulomb', tag: 'HYD', title: "Coulomb / Gauss — champ 1/r²",
+    tex: String.raw`E(r)=\frac{kq}{r^2},\quad \Phi=\oint E\cdot dS=\frac{q}{\varepsilon_0}`,
+    desc: "Loi de Coulomb et théorème de Gauss : le flux à travers une sphère est constant (q/ε₀), le champ décroît en 1/r². Analogie visuelle avec les lignes de courant et les partitions de scores du propeller.",
+    draw: drawCoulombGauss,
+    params: [
+      { key: 'sign', label: 'Signe (+1 / −1)', min: -1, max: 1, step: 1, value: 1 },
+      { key: 'nRays', label: 'Nombre de rayons', min: 12, max: 64, step: 2, value: 36 },
+      { key: 'showSpheres', label: 'Sphères de Gauss', type: 'bool', value: true }
+    ],
+    legendLeft: {
+      title: "Charge",
+      items: [
+        { color: '#ef4444', text: "+q (divergent)" },
+        { color: '#3b82f6', text: "−q (convergent)" }
+      ],
+      eq: String.raw`E\sim 1/r^2`
+    },
+    legendRight: {
+      title: "Gauss",
+      items: [
+        { color: '#64dcff', text: "Sphères r₁, r₂, r₃" },
+        { color: '#eab308', text: "Φ constant" }
+      ],
+      eq: String.raw`\Phi=q/\varepsilon_0`
+    }
+  },
+  {
+    id: 'flux', tag: 'HYD', title: "Flux de champ — surface de Gauss",
+    tex: String.raw`\oint_S\mathbf{E}\cdot d\mathbf{S}=\frac{q}{\varepsilon_0}`,
+    caption: "Flèches = flux à travers S  ·  indépendant du rayon de la sphère",
+    desc: "Théorème de Gauss : le flux total de E à travers une surface fermée ne dépend que de la charge intérieure. Les flèches sur la sphère illustrent E·n ; leur intégrale reste q/ε₀.",
+    draw: drawFieldFlux,
+    params: [
+      { key: 'sign', label: 'Signe (+1 / −1)', min: -1, max: 1, step: 1, value: 1 },
+      { key: 'radius', label: 'Rayon surface', min: 0.45, max: 1.2, step: 0.05, value: 0.85 },
+      { key: 'nRays', label: 'Rayons de flux', min: 12, max: 48, step: 2, value: 32 },
+      { key: 'showSurface', label: 'Surface de Gauss', type: 'bool', value: true }
+    ],
+    legendLeft: {
+      title: "Champ",
+      items: [
+        { color: '#ef4444', text: "+q (flux sortant)" },
+        { color: '#3b82f6', text: "−q (flux entrant)" }
+      ],
+      eq: String.raw`\Phi_E`
+    },
+    legendRight: {
+      title: "Gauss",
+      items: [
+        { color: '#64dcff', text: "Surface S" },
+        { color: '#eab308', text: "Φ = q/ε₀" }
+      ],
+      eq: String.raw`\oint E\cdot dS`
+    }
+  },
+  {
+    id: 'voronoi', tag: 'HYD', title: "Bassins d'attraction & Voronoi",
+    tex: String.raw`A_i=\{x:d(x,c_i)/|q_i|^{1/2}\le d(x,c_j)/|q_j|^{1/2}\}`,
+    caption: "Partition de Voronoi pondérée  ·  analogie des cônes Kᵢ du propeller",
+    desc: "Chaque couleur est le bassin d'attraction d'une charge (Voronoi pondéré par |q|). Analogie directe avec les cônes de score Kᵢ : le plan se partitionne en régions dominées par un centroïde / une charge.",
+    draw: drawVoronoiBasins,
+    params: [
+      { key: 'mode', label: 'Config 0–3', min: 0, max: 3, step: 1, value: 0 },
+      { key: 'resolution', label: 'Résolution grille', min: 12, max: 28, step: 2, value: 20 },
+      { key: 'nSeeds', label: 'Lignes de champ', min: 12, max: 40, step: 2, value: 24 },
+      { key: 'showBasins', label: 'Bassins colorés', type: 'bool', value: true },
+      { key: 'showField', label: 'Lignes de champ', type: 'bool', value: true },
+      { key: 'showBoundaries', label: 'Frontières', type: 'bool', value: true }
+    ],
+    legendLeft: {
+      title: "Charges",
+      items: [
+        { color: '#ef4444', text: "Positive +" },
+        { color: '#3b82f6', text: "Négative −" }
+      ],
+      eq: String.raw`\mathrm{Voronoi}`
+    },
+    legendRight: {
+      title: "Partition",
+      items: [
+        { color: '#eab308', text: "Bassins Aᵢ" },
+        { color: '#a855f7', text: "≈ cônes Kᵢ" }
+      ],
+      eq: String.raw`A_i\leftrightarrow K_i`
+    }
+  },
+  {
+    id: 'streamcone', tag: 'BRI', title: "Lignes de courant ↔ cônes Kᵢ",
+    tex: String.raw`K_i=\{x:\langle z_i,x\rangle=\max_j\langle z_j,x\rangle\}`,
+    caption: "Lignes de courant (bleu) → centre  ·  frontières des cônes Kᵢ (violet)",
+    desc: "Lignes de courant hydrostatiques vs frontières des cônes de score. Le paramètre Courbure spirale contrôle l'enroulement (0 = radial, 1.2 = spirale). La partition Aᵢ est le bassin d'attraction du centroïde zᵢ.",
+    draw: drawStreamCone,
+    params: [
+      { key: 'm', label: 'Nombre de cônes', min: 3, max: 6, step: 1, value: 6 },
+      { key: 'radius', label: 'Rayon', min: 0.7, max: 1.6, step: 0.05, value: 1.25 },
+      { key: 'nLines', label: 'Lignes de courant', min: 8, max: 36, step: 1, value: 24 },
+      { key: 'spiral', label: 'Courbure spirale', min: 0, max: 1.2, step: 0.05, value: 0.55 }
+    ],
+    legendLeft: {
+      title: "Cônes",
+      items: [
+        { color: '#ef4444', text: "K₁" },
+        { color: '#3b82f6', text: "K₂" },
+        { color: '#22c55e', text: "K₃" },
+        { color: '#a855f7', text: "K₄" },
+        { color: '#eab308', text: "K₅" },
+        { color: '#06b6d4', text: "K₆" }
+      ],
+      eq: String.raw`K_i\ \mathrm{convexe}`
+    },
+    legendRight: {
+      title: "Courant",
+      items: [
+        { color: '#78b4ff', text: "Lignes de courant" },
+        { color: '#eab308', text: "Centre = source" }
+      ],
+      eq: String.raw`A_i\ \mathrm{bassin}`
+    }
+  },
+  {
+    id: 'cellcomp', tag: 'BRI', title: "Cellule vs complémentaire",
+    tex: String.raw`z(A)+z(A^{c})=0`,
+    desc: "Cellule A et complémentaire Aᶜ : centroïdes opposés. Analogue de la borne Pᵢ ≥ A rᵢ² du Lemme 3.1 (réarrangement demi-espace).",
+    draw: drawCellComplement,
+    params: [
+      { key: 'angle', label: 'Demi-angle', min: 0.2, max: 1.4, step: 0.05, value: 0.52 },
+      { key: 'radius', label: 'Rayon', min: 0.8, max: 1.6, step: 0.05, value: 1.35 },
+      { key: 'animate', label: 'Animer l\'angle', type: 'bool', value: false }
+    ],
+    legendLeft: {
+      title: "Cellules",
+      items: [
+        { color: '#ef4444', text: "A" },
+        { color: '#3b82f6', text: "Aᶜ" }
+      ],
+      eq: String.raw`A\cup A^c=\mathbb{R}^2`
+    },
+    legendRight: {
+      title: "Centroïdes",
+      items: [
+        { color: '#ef4444', text: "z(A)" },
+        { color: '#3b82f6', text: "z(Aᶜ)=−z(A)" }
+      ],
+      eq: String.raw`P_i\ge A r_i^2`
+    }
+  },
+  {
+    id: 'bridge', tag: 'BRI', title: "Pont Propeller ⊕ Graphe ⊕ Forces",
+    tex: String.raw`\mathrm{secteurs}=k\text{-clusters}=\mathrm{bassins}`,
+    desc: "Commutation visuelle : secteurs du propeller, sommets d'un graphe régulier colorés par secteur, flèches = centroïdes/forces. Une seule figure pour Lagrange, Gauss et Ramanujan.",
+    draw: drawPropellerGraphBridge,
+    params: [
+      { key: 'm', label: 'Secteurs m', min: 3, max: 6, step: 1, value: 3 },
+      { key: 'n', label: 'Sommets n', min: 12, max: 40, step: 2, value: 24 },
+      { key: 'showForces', label: 'Forces ẑᵢ', type: 'bool', value: true },
+      { key: 'showGraph', label: 'Graphe', type: 'bool', value: true }
+    ],
+    legendLeft: {
+      title: "Couches",
+      items: [
+        { color: '#ef4444', text: "Secteur / cluster" },
+        { color: '#7dd3fc', text: "Sommets" },
+        { color: '#eab308', text: "Forces" }
+      ],
+      eq: String.raw`m=k`
+    },
+    legendRight: {
+      title: "Lecture",
+      items: [
+        { color: '#a855f7', text: "Bassins de scores" },
+        { color: '#22c55e', text: "Équilibre ∑ẑᵢ=0" }
+      ],
+      eq: String.raw`\mathrm{commute}`
+    }
+  },
+  {
+    id: 'perspective', tag: 'BRI', title: "Perspective unifiée bassins·forces·flux",
+    tex: String.raw`K_i\ \leftrightarrow\ A_i\ \leftrightarrow\ \Phi_i`,
+    caption: "Une figure : secteurs = bassins = cônes  ·  flèches = forces  ·  flux locaux",
+    desc: "Nouvelle perspective pédagogique : superposer partitions (cônes/bassins), équilibre des forces (centroïdes) et flux de champ sortant de chaque bassin — pont Gauss / Lagrange / propeller.",
+    draw: drawPerspectiveBridge,
+    params: [
+      { key: 'm', label: 'Nombre de bassins', min: 3, max: 6, step: 1, value: 3 },
+      { key: 'showForces', label: 'Forces ẑᵢ', type: 'bool', value: true },
+      { key: 'showFlux', label: 'Flux locaux', type: 'bool', value: true }
+    ],
+    legendLeft: {
+      title: "Couches",
+      items: [
+        { color: '#ef4444', text: "Bassin / cône" },
+        { color: '#eab308', text: "Force" },
+        { color: '#7dd3fc', text: "Flux" }
+      ],
+      eq: String.raw`\mathrm{unifié}`
+    },
+    legendRight: {
+      title: "Lecture",
+      items: [
+        { color: '#a855f7', text: "Partition de l'espace" },
+        { color: '#22c55e', text: "∑ẑᵢ = 0" }
+      ],
+      eq: String.raw`\sum\hat z_i=0`
+    }
+  },
+  {
+    id: 'ramgraph', tag: 'GRA', title: "Graphe de Ramanujan (quasi-régulier)",
+    tex: String.raw`|\lambda|\le 2\sqrt{d-1}\quad(d\text{-régulier})`,
+    desc: "Graphe quasi-régulier (plus proches voisins sur la sphère). La borne 2√(d−1) est une référence théorique Ramanujan — ce n'est pas un vrai graphe de Ramanujan. Expansion visuelle + sous-ensemble S.",
+    draw: drawRamanujanGraph,
+    params: [
+      { key: 'n', label: 'Sommets n', min: 12, max: 48, step: 2, value: 24 },
+      { key: 'degree', label: 'Degré d', min: 2, max: 6, step: 1, value: 3 },
+      { key: 'showGap', label: 'Borne λ₂', type: 'bool', value: true },
+      { key: 'showExpand', label: 'Sous-ensemble S', type: 'bool', value: true }
+    ],
+    legendLeft: {
+      title: "Graphe",
+      items: [
+        { color: '#7dd3fc', text: "Sommets V" },
+        { color: '#7dd3fc', text: "Arêtes E" },
+        { color: '#fbbf24', text: "S ⊂ V" }
+      ],
+      eq: String.raw`d\text{-régulier}`
+    },
+    legendRight: {
+      title: "Ramanujan",
+      items: [
+        { color: '#fbbf24', text: "λ₂ ≤ 2√(d−1)" },
+        { color: '#22c55e', text: "Expansion max." }
+      ],
+      eq: String.raw`[Alon{-}Boppana]`
+    }
+  },
+  {
+    id: 'spectral', tag: 'GRA', title: "Illustration de la borne de Ramanujan",
+    tex: String.raw`\text{Illustration : }\lambda_1=d,\ \lambda_{2..n}\in[-2\sqrt{d-1},\,2\sqrt{d-1}]`,
+    desc: "Visualisation du spectre : valeur d (degré) isolée, reste dans l'intervalle de Ramanujan. Lien avec le gap spectral qui contrôle l'expansion — outil des réductions NP-hard.",
+    draw: drawSpectralGap,
+    params: [
+      { key: 'n', label: 'Taille spectre', min: 10, max: 36, step: 2, value: 20 },
+      { key: 'degree', label: 'Degré d', min: 2, max: 8, step: 1, value: 4 }
+    ],
+    legendLeft: {
+      title: "Valeurs",
+      items: [
+        { color: '#ef4444', text: "λ₁ = d" },
+        { color: '#7dd3fc', text: "λ dans la borne" },
+        { color: '#f87171', text: "Hors borne" }
+      ],
+      eq: String.raw`2\sqrt{d-1}`
+    },
+    legendRight: {
+      title: "Interprétation",
+      items: [
+        { color: '#22c55e', text: "Bon expanseur" },
+        { color: '#fbbf24', text: "Gap spectral" }
+      ],
+      eq: String.raw`h(G)\gtrsim\mathrm{gap}`
+    }
+  },
+  {
+    id: 'clusters', tag: 'CLU', title: "Clusters 3D — 4 méthodes",
+    tex: String.raw`\min\mathrm{Cut}(V_1,\ldots,V_k)\quad\leftrightarrow\quad\sum\|\hat z_i\|^2`,
+    desc: "Quatre modes de clustering (angulaire = propeller, latitude, spectral, marche aléatoire). Centroïdes des clusters = forces du propeller. Arêtes or = coupe inter-clusters (lien Max-k-Cut / UGC).",
+    draw: drawGraphClusters,
+    params: [
+      { key: 'n', label: 'Sommets n', min: 12, max: 48, step: 2, value: 30 },
+      { key: 'degree', label: 'Degré d', min: 2, max: 5, step: 1, value: 3 },
+      { key: 'k', label: 'Clusters k', min: 2, max: 6, step: 1, value: 3 },
+      { key: 'method', label: 'Méthode 0–3', min: 0, max: 3, step: 1, value: 0 },
+      { key: 'showEdges', label: 'Arêtes', type: 'bool', value: true },
+      { key: 'showCenters', label: 'Centroïdes', type: 'bool', value: true }
+    ],
+    legendLeft: {
+      title: "Méthodes",
+      items: [
+        { color: '#eab308', text: "0 angulaire (propeller)" },
+        { color: '#3b82f6', text: "1 latitude" },
+        { color: '#a855f7', text: "2 angulaire animé" },
+        { color: '#06b6d4', text: "3 random-walk" }
+      ],
+      eq: String.raw`k\text{-clusters}`
+    },
+    legendRight: {
+      title: "Pont",
+      items: [
+        { color: '#fbbf24', text: "Coupe (arêtes or)" },
+        { color: '#ef4444', text: "Centroïdes ẑᵢ" }
+      ],
+      eq: String.raw`\sum\|\hat z_i\|^2`
+    }
+  },
+  {
+    id: 'delaunay', tag: 'GRA', title: "Polyèdres de Delaunay ↔ Voronoi",
+    tex: String.raw`\mathrm{Delaunay}\ \leftrightarrow\ \mathrm{Voronoi\ (dual)}`,
+    caption: "Cyan = Delaunay  ·  Or = Voronoi (dual)  ·  Violet = cercles  ·  slider Étape algo 0–4",
+    desc: "Algo pédagogique : (1) sites (2) triangles Delaunay = cercle circonscrit vide (3) centres = sommets Voronoi (4) dual. Critère de Lawson / Bowyer–Watson : aucune point dans un cercle circonscrit. Lien bassins d'attraction et cônes Kᵢ.",
+    draw: drawDelaunayPolyhedra,
+    params: [
+      { key: 'n', label: 'Nombre de sites', min: 4, max: 14, step: 1, value: 9 },
+      { key: 'algoStep', label: 'Étape algo 0–4', min: 0, max: 4, step: 1, value: 0 },
+      { key: 'showDelaunay', label: 'Triangles Delaunay', type: 'bool', value: true },
+      { key: 'showVoronoi', label: 'Arêtes Voronoi', type: 'bool', value: true },
+      { key: 'showCircum', label: 'Cercles circonscrits', type: 'bool', value: true },
+      { key: 'showDual', label: 'Liens dualité', type: 'bool', value: true }
+    ],
+    legendLeft: {
+      title: "Delaunay",
+      items: [
+        { color: '#7dd3fc', text: "Triangles" },
+        { color: '#a855f7', text: "Cercles circonscrits" }
+      ],
+      eq: String.raw`\Delta`
+    },
+    legendRight: {
+      title: "Dual",
+      items: [
+        { color: '#fbbf24', text: "Voronoi" },
+        { color: '#22c55e', text: "Sites" }
+      ],
+      eq: String.raw`V\leftrightarrow D`
+    }
+  },
+  {
+    id: 'ugc', tag: 'NP', title: "Unique Games — SDP + hyperplan",
+    tex: String.raw`\mathbb{E}[\mathrm{val}]\ge\frac{\mathrm{OPT}}{\alpha_k}`,
+    desc: "Vecteurs SDP sur la sphère + hyperplan aléatoire (arrondi gaussien). Completeness vs soundness : cœur des preuves de dureté NP-hard via UGC, relié au propeller et au facteur α_k.",
+    draw: drawUGCHardness,
+    params: [
+      { key: 'n', label: 'Vecteurs n', min: 6, max: 24, step: 2, value: 12 },
+      { key: 'k', label: 'Labels k', min: 2, max: 6, step: 1, value: 3 },
+      { key: 'completeness', label: 'Mode completeness', type: 'bool', value: true }
+    ],
+    legendLeft: {
+      title: "SDP",
+      items: [
+        { color: '#ef4444', text: "Vecteurs uᵢ" },
+        { color: '#fbbf24', text: "Hyperplan g" }
+      ],
+      eq: String.raw`g\sim\mathcal{N}(0,I)`
+    },
+    legendRight: {
+      title: "Dureté",
+      items: [
+        { color: '#22c55e', text: "Completeness" },
+        { color: '#f43f5e', text: "Soundness" }
+      ],
+      eq: String.raw`\mathrm{UGC}`
+    }
+  },
+  {
+    id: 'expansion', tag: 'NP', title: "Expansion vs coupe (Max-Cut)",
+    tex: String.raw`h(G)=\min_{S}\frac{|\partial S|}{\min(|S|,|S^c|)}`,
+    desc: "Sous-ensemble S et arêtes de bord (or). L'expansion des graphes de Ramanujan est quasi optimale — base des réductions NP-hard (Max-Cut, Unique Games). Analogie avec la frontière des cônes du propeller.",
+    draw: drawExpansionVsCut,
+    params: [
+      { key: 'n', label: 'Sommets n', min: 16, max: 48, step: 2, value: 28 },
+      { key: 'degree', label: 'Degré d', min: 2, max: 5, step: 1, value: 3 },
+      { key: 'cutRatio', label: 'Ratio |S|/n', min: 0.1, max: 0.5, step: 0.05, value: 0.25 }
+    ],
+    legendLeft: {
+      title: "Partition",
+      items: [
+        { color: '#fbbf24', text: "S" },
+        { color: '#7dd3fc', text: "V \\ S" },
+        { color: '#fbbf24', text: "∂S (coupe)" }
+      ],
+      eq: String.raw`h(G)`
+    },
+    legendRight: {
+      title: "Dureté",
+      items: [
+        { color: '#f43f5e', text: "Max-Cut" },
+        { color: '#a855f7', text: "UGC" }
+      ],
+      eq: String.raw`\mathrm{NP{-}hard}`
+    }
+  },
+  {
+    id: 'maxcut', tag: 'NP', title: "Max-Cut — SDP + hyperplan (GW)",
+    tex: String.raw`\alpha_{\mathrm{GW}}=\min_{\rho}\frac{2\arccos\rho}{\pi(1-\rho)}\approx 0.878`,
+    caption: "Arêtes or = coupe  ·  rouge / bleu = côtés  ·  cut/SDP peut dépasser 1 sur une instance ; en espérance ≥ α_GW",
+    desc: "Démonstration vivante de Goemans–Williamson : vecteurs SDP, hyperplan gaussien g, cut obtenu par signes ⟨u_i,g⟩. Comparaison cut réel vs valeur SDP. Sous UGC, α_GW est optimal.",
+    draw: drawMaxCutDemo,
+    params: [
+      { key: 'n', label: 'Sommets n', min: 4, max: 14, step: 1, value: 8 },
+      { key: 'density', label: "Densité d'arêtes", min: 0.2, max: 0.85, step: 0.05, value: 0.45 }
+    ],
+    legendLeft: {
+      title: "Cut",
+      items: [
+        { color: '#ef4444', text: "Côté +" },
+        { color: '#3b82f6', text: "Côté −" },
+        { color: '#fbbf24', text: "Arête coupée" }
+      ],
+      eq: String.raw`\mathrm{sign}\langle u_i,g\rangle`
+    },
+    legendRight: {
+      title: "Garantie",
+      items: [
+        { color: '#22c55e', text: "α_GW ≈ 0.878" },
+        { color: '#a855f7', text: "Optimal sous UGC" }
+      ],
+      eq: String.raw`[\mathrm{GW95}]`
+    }
+  },
+  {
+    id: 'grothendieck', tag: 'NP', title: "Borne de Grothendieck K_G",
+    tex: String.raw`\bigl|\sum a_{ij}\langle u_i,u_j\rangle\bigr|\le K_G\max_{\varepsilon}\bigl|\sum a_{ij}\varepsilon_i\varepsilon_j\bigr|`,
+    caption: "K_G ∈ [1.676, 1.782]  ·  Max-Cut / SDP sont des cas particuliers de formes quadratiques",
+    desc: "Inégalité de Grothendieck : le passage des vecteurs unitaires aux signes ±1 coûte au plus K_G. La constante universelle lie SDP et optimisation booléenne — même géométrie que l'arrondi Max-Cut.",
+    draw: drawGrothendieckBound,
+    params: [
+      { key: 'n', label: 'Dimension n', min: 3, max: 9, step: 1, value: 6 }
+    ],
+    legendLeft: {
+      title: "Formes",
+      items: [
+        { color: '#7dd3fc', text: "Vecteurs u_i" },
+        { color: '#22c55e', text: "a_ij > 0" },
+        { color: '#ef4444', text: "a_ij < 0" }
+      ],
+      eq: String.raw`K_G`
+    },
+    legendRight: {
+      title: "Constantes",
+      items: [
+        { color: '#eab308', text: "ratio SDP/bool" },
+        { color: '#22c55e', text: "K_G ≤ 1.782" },
+        { color: '#3b82f6', text: "K_G ≥ 1.676" }
+      ],
+      eq: String.raw`[\mathrm{Grothendieck}]`
+    }
+  },
+  {
+    id: 'gaussround', tag: 'PRO', title: "Arrondi gaussien (Thm 2.1)",
+    tex: String.raw`\mathbb{E}\,\mathrm{val}\ge\frac{\mathrm{Clust}}{\alpha_k},\quad\alpha_k=\frac{8\pi}{9}\Bigl(1-\frac1k\Bigr)`,
+    desc: "Vecteurs SDP uᵢ sur la sphère + direction aléatoire g ∼ 𝒩(0,I). L'arrondi par scores ⟨uᵢ,g⟩ est l'analogue d'une projection de forces sur un axe aléatoire — lien direct avec le facteur α_k du kernel-clustering.",
+    draw: drawGaussianRounding,
+    params: [
+      { key: 'k', label: 'Nombre de clusters k', min: 2, max: 6, step: 1, value: 3 },
+      { key: 'showSphere', label: 'Sphère unitaire', type: 'bool', value: true }
+    ],
+    legendLeft: {
+      title: "SDP",
+      items: [
+        { color: '#ef4444', text: "u₁" },
+        { color: '#3b82f6', text: "u₂" },
+        { color: '#22c55e', text: "u₃" }
+      ],
+      eq: String.raw`g\sim\mathcal{N}(0,I)`
+    },
+    legendRight: {
+      title: "Garantie",
+      items: [
+        { color: '#eab308', text: "Facteur α_k" },
+        { color: '#a855f7', text: "Scores ⟨uᵢ,g⟩" }
+      ],
+      eq: String.raw`[5,\ \mathrm{Thm\ 2.1}]`
+    }
+  }
+];
+
+/* =====================================================================
+   5. UI
+   ===================================================================== */
+let currentScene = STORY[0];
+let currentParams = {};
+let storyIndex = 0;
+let cinemaMode = false;
+let cinemaInterval = null;
+
+function renderSceneList() {
+  const ul = document.getElementById('scene-list');
+  ul.innerHTML = '';
+  STORY.forEach((s, i) => {
+    const li = document.createElement('li');
+    const title = getSceneTitle(s);
+    li.innerHTML = `<span class="tag ${s.tag.toLowerCase()}">${s.tag}</span>${title}`;
+    li.addEventListener('click', () => {
+      if (cinemaMode) toggleCinema();
+      storyIndex = i;
+      selectScene(i);
+    });
+    if (s === currentScene) li.classList.add('active');
+    ul.appendChild(li);
+  });
+}
+
+function renderParams() {
+  const box = document.getElementById('param-box');
+  box.innerHTML = '';
+  if (!currentScene.params || currentScene.params.length === 0) {
+    box.innerHTML = `<div style="color:#666;font-style:italic;font-size:0.9rem;">${t('aucun-param')}</div>`;
+    return;
+  }
+  currentScene.params.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'param';
+    const paramLabel = getParamLabel(currentScene, p);
+    if (p.type === 'bool') {
+      const btn = document.createElement('button');
+      btn.textContent = (currentParams[p.key] ? t('toggle-on') : t('toggle-off')) + paramLabel;
+      btn.style.cssText = 'width:100%;text-align:left;font-size:0.9rem;padding:8px 12px;border-radius:8px;border:1px solid var(--panel-border);background:' + (currentParams[p.key] ? 'var(--accent-purple)' : 'rgba(255,255,255,0.06)') + ';color:white;cursor:pointer;';
+      btn.addEventListener('click', () => {
+        currentParams[p.key] = !currentParams[p.key];
+        renderParams();
+      });
+      div.appendChild(btn);
+    } else {
+      const lab = document.createElement('label');
+      lab.innerHTML = `<span>${paramLabel}</span><span style="color:var(--accent-gold);">${currentParams[p.key]}</span>`;
+      const inp = document.createElement('input');
+      inp.type = 'range';
+      inp.min = p.min; inp.max = p.max; inp.step = p.step;
+      inp.value = currentParams[p.key];
+      inp.addEventListener('input', () => {
+        currentParams[p.key] = parseFloat(inp.value);
+        lab.querySelector('span:last-child').textContent = inp.value;
+      });
+      div.appendChild(lab);
+      div.appendChild(inp);
+    }
+    box.appendChild(div);
+  });
+}
+
+function renderLegends() {
+  const lBox = document.getElementById('legend-left');
+  const rBox = document.getElementById('legend-right');
+  [lBox, rBox].forEach(el => {
+    el.style.left = ''; el.style.top = ''; el.style.right = ''; el.style.transform = '';
+  });
+  const leftTitle = getLegendTitle(currentScene, 'left');
+  const rightTitle = getLegendTitle(currentScene, 'right');
+  const leftItems = getLegendItems(currentScene, 'left');
+  const rightItems = getLegendItems(currentScene, 'right');
+  lBox.innerHTML = `<h4>${leftTitle}</h4><ul>` +
+    leftItems.map(it =>
+      `<li><span class="swatch" style="background:${it.color}"></span><span>${it.text}</span></li>`
+    ).join('') + `</ul>` +
+    (currentScene.legendLeft.eq ? `<div class="eq" id="eq-left"></div>` : '');
+  rBox.innerHTML = `<h4>${rightTitle}</h4><ul>` +
+    rightItems.map(it =>
+      `<li><span class="swatch" style="background:${it.color}"></span><span>${it.text}</span></li>`
+    ).join('') + `</ul>` +
+    (currentScene.legendRight.eq ? `<div class="eq" id="eq-right"></div>` : '');
+  if (window.katex) {
+    try {
+      if (currentScene.legendLeft.eq) katex.render(currentScene.legendLeft.eq, document.getElementById('eq-left'), { throwOnError: false });
+      if (currentScene.legendRight.eq) katex.render(currentScene.legendRight.eq, document.getElementById('eq-right'), { throwOnError: false });
+    } catch (_) {}
+  }
+  makeLegendsDraggable();
+}
+
+function updateTimelineUI() {
+  const slider = document.getElementById('timeline-slider');
+  const label = document.getElementById('step-label');
+  slider.value = storyIndex;
+  label.textContent = `${t('etape')} ${storyIndex + 1} / ${STORY.length}`;
+}
+
+function selectScene(index) {
+  if (index < 0 || index >= STORY.length || !STORY[index]) {
+    console.warn('selectScene: index invalide', index);
+    return;
+  }
+  storyIndex = index;
+  currentScene = STORY[index];
+  currentParams = {};
+  if (currentScene.params) {
+    currentScene.params.forEach(p => currentParams[p.key] = p.value);
+  }
+  document.getElementById('scene-title').textContent = getSceneTitle(currentScene);
+  const cap = document.getElementById('scene-caption');
+  if (cap) {
+    const c = getSceneCaption(currentScene);
+    if (c) {
+      cap.textContent = c;
+      cap.style.display = 'block';
+    } else {
+      cap.textContent = '';
+      cap.style.display = 'none';
+    }
+  }
+  const eqEl = document.getElementById('scene-eq');
+  try {
+    if (window.katex) katex.render(currentScene.tex, eqEl, { throwOnError: false, displayMode: true });
+    else eqEl.textContent = currentScene.tex;
+  } catch (_) {
+    eqEl.textContent = currentScene.tex;
+  }
+  document.getElementById('description').innerHTML = getSceneDesc(currentScene);
+  renderSceneList();
+  renderParams();
+  renderLegends();
+  updateTimelineUI();
+  view.yaw = 0.55; view.pitch = 0.32; view.zoom = 1;
+  view.vyaw = 0; view.vpitch = 0;
+}
+
+function togglePanel(force) {
+  const panel = document.getElementById('panel');
+  const stage = document.getElementById('stage');
+  const btn = document.getElementById('btn-panel');
+  const open = force !== undefined ? force : !panel.classList.contains('open');
+  panel.classList.toggle('open', open);
+  stage.classList.toggle('panel-open', open);
+  if (btn) btn.classList.toggle('on', open);
+  const lBox = document.getElementById('legend-left');
+  const rBox = document.getElementById('legend-right');
+  [lBox, rBox].forEach(el => { el.style.left = ''; el.style.right = ''; el.style.top = ''; el.style.transform = ''; });
+  setTimeout(() => { resizeCanvas(); resizeParticles(); }, 320);
+}
+
+function toggleCinema() {
+  cinemaMode = !cinemaMode;
+  const btn = document.getElementById('btn-cinema');
+  if (cinemaMode) {
+    btn.classList.add('playing');
+    btn.textContent = t('cinema-stop');
+    cinemaInterval = setInterval(() => {
+      storyIndex = (storyIndex + 1) % STORY.length;
+      selectScene(storyIndex);
+    }, 6000);
+  } else {
+    btn.classList.remove('playing');
+    btn.textContent = t('cinema');
+    clearInterval(cinemaInterval);
+  }
+}
+
+document.getElementById('timeline-slider').addEventListener('input', function () {
+  if (cinemaMode) toggleCinema();
+  const idx = parseInt(this.value);
+  if (idx !== storyIndex) selectScene(idx);
+});
+document.getElementById('btn-cinema').addEventListener('click', toggleCinema);
+document.addEventListener('keydown', function (e) {
+  if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+  if (e.key === 'p' || e.key === 'P') { e.preventDefault(); togglePanel(); }
+  if (e.key === 'ArrowRight') { e.preventDefault(); selectScene((storyIndex + 1) % STORY.length); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); selectScene((storyIndex - 1 + STORY.length) % STORY.length); }
+});
+
+/* Bouton de traduction */
+document.getElementById('lang-toggle').addEventListener('click', function () {
+  setLanguage(currentLang === 'fr' ? 'en' : 'fr');
+});
+
+/* =====================================================================
+   6. LOOP
+   ===================================================================== */
+let lastTime = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - lastTime) / 1000);
+  lastTime = now;
+  if (!view.paused) {
+    view.time += dt * view.speed;
+    if (view.autoRotate) {
+      view.vyaw += (0.16 - view.vyaw) * dt * 2;
+    } else {
+      view.vyaw *= Math.pow(0.92, dt * 60);
+      view.vpitch *= Math.pow(0.92, dt * 60);
+    }
+    view.yaw += view.vyaw * dt;
+    view.pitch += view.vpitch * dt;
+  }
+  if (view.W === 0) resizeCanvas();
+  try {
+    if (currentScene && currentScene.draw) currentScene.draw(currentParams);
+  } catch (err) {
+    console.error(err);
+  }
+  drawParticles();
+  requestAnimationFrame(loop);
+}
+
+let dragging = false, lastX = 0, lastY = 0;
+canvas.addEventListener('pointerdown', e => {
+  dragging = true; lastX = e.clientX; lastY = e.clientY;
+  canvas.setPointerCapture(e.pointerId);
+  view.vyaw = 0; view.vpitch = 0;
+});
+canvas.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  const dx = e.clientX - lastX, dy = e.clientY - lastY;
+  lastX = e.clientX; lastY = e.clientY;
+  view.yaw += dx * 0.005;
+  view.pitch = Math.max(-1.2, Math.min(1.2, view.pitch + dy * 0.005));
+  view.vyaw = dx * 0.005 / 0.016;
+  view.vpitch = dy * 0.005 / 0.016;
+});
+canvas.addEventListener('pointerup', e => {
+  dragging = false;
+  try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+});
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  view.zoom = Math.max(0.3, Math.min(4, view.zoom * (e.deltaY > 0 ? 0.92 : 1.08)));
+}, { passive: false });
+
+document.getElementById('speed').addEventListener('input', function () {
+  view.speed = parseFloat(this.value);
+  document.getElementById('speed-val').textContent = this.value;
+});
+document.getElementById('bg-opacity').addEventListener('input', function () {
+  view.bgOpacity = parseFloat(this.value);
+  document.getElementById('bg-val').textContent = this.value;
+});
+document.getElementById('btn-auto').addEventListener('click', function () {
+  view.autoRotate = !view.autoRotate;
+  this.classList.toggle('on', view.autoRotate);
+});
+document.getElementById('btn-pause').addEventListener('click', function () {
+  view.paused = !view.paused;
+  this.classList.toggle('on', view.paused);
+});
+document.getElementById('btn-grid').addEventListener('click', function () {
+  view.grid = !view.grid;
+  this.classList.toggle('on', view.grid);
+});
+document.getElementById('btn-labels').addEventListener('click', function () {
+  view.labels = !view.labels;
+  this.classList.toggle('on', view.labels);
+});
+document.getElementById('btn-particles').addEventListener('click', function () {
+  particlesActive = !particlesActive;
+  this.classList.toggle('on', particlesActive);
+});
+document.getElementById('btn-panel').addEventListener('click', function () { togglePanel(); });
+document.getElementById('btn-full').addEventListener('click', function () {
+  const stage = document.getElementById('stage');
+  if (!document.fullscreenElement) stage.requestFullscreen().catch(() => {});
+  else document.exitFullscreen().catch(() => {});
+});
+document.addEventListener('fullscreenchange', () => setTimeout(() => { resizeCanvas(); resizeParticles(); }, 150));
+window.addEventListener('resize', () => { resizeCanvas(); resizeParticles(); });
+
+function makeLegendsDraggable() {
+  document.querySelectorAll('.floating-legend').forEach(el => {
+    if (el._dragReady) return;
+    el._dragReady = true;
+    let isDragging = false, startX = 0, startY = 0, origLeft = 0, origTop = 0;
+    el.addEventListener('pointerdown', e => {
+      isDragging = true;
+      el.setPointerCapture(e.pointerId);
+      startX = e.clientX; startY = e.clientY;
+      const rect = el.getBoundingClientRect();
+      const parent = el.offsetParent || document.body;
+      const parentRect = parent.getBoundingClientRect();
+      origLeft = rect.left - parentRect.left;
+      origTop = rect.top - parentRect.top;
+      el.style.left = origLeft + 'px';
+      el.style.top = origTop + 'px';
+      el.style.right = 'auto';
+      el.style.transform = 'none';
+      e.preventDefault();
+    });
+    el.addEventListener('pointermove', e => {
+      if (!isDragging) return;
+      el.style.left = (origLeft + e.clientX - startX) + 'px';
+      el.style.top = (origTop + e.clientY - startY) + 'px';
+    });
+    el.addEventListener('pointerup', e => {
+      isDragging = false;
+      try { el.releasePointerCapture(e.pointerId); } catch (_) {}
+    });
+  });
+}
+
+function boot() {
+  resizeCanvas();
+  resizeParticles();
+  setLanguage('fr');
+  selectScene(0);
+  const slider = document.getElementById('timeline-slider');
+  if (slider) slider.max = STORY.length - 1;
+  requestAnimationFrame(loop);
+}
+
+if (window.katex) boot();
+else window.addEventListener('load', boot);
+</script>
+</body>
+</html>
